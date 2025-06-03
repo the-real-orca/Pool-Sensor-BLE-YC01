@@ -1,0 +1,112 @@
+<!DOCTYPE HTML><html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta content="de" http-equiv="Content-Language" />
+  <meta content="text/html; charset=utf-8" http-equiv="Content-Type" />
+  <link rel="stylesheet" href="style.css">
+<!--
+  <title>Title</title>
+  <link rel="icon" type="image/png" href="robomower.png">
+-->
+</head>
+
+<body>
+  <div class="topnav">
+    <h1 id="title">TITLE</h1>
+  </div>
+  <div class="content">
+    <div class="card">
+      <div id="msg" class="info">---</div>
+      <button name="ok" id="btn_ok" class="button">Ok</button>
+    <br>
+    <div class="card secondary">
+      <div id="toggle_config" class="toggle_card">&#x1F6E0;</div>
+      <div id="config" class="hide">
+        <p id="status" style="color:grey">status ...</p>
+        <hr>
+        <p>
+          <a href="config" class="button buttonSmall">config</a>
+          <a href="update" class="button buttonSmall">update ESP</a>
+          <button name="reboot" id="btn_reboot" class="button buttonred buttonSmall">reboot</button>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  window.addEventListener('load', onLoad);
+  
+  function ActionToggleCard(event)
+  {
+    card = event.srcElement;
+    while ( !card.classList.contains('card') ) {
+      card = card.parentNode;
+    }
+
+    for (var el of card.children ) {
+      if ( !el.classList.contains('toggle_card') ) {
+        el.classList.toggle('hide');
+      }
+    }
+  }
+
+  function onLoad(event) 
+  {
+    console.log('...init');
+    for (var el of document.querySelectorAll(".toggle_card") ) {
+      el.addEventListener("click",  ActionToggleCard);
+    }
+
+    for (var btn of document.getElementsByTagName("button") ) {
+      initButton(btn);
+    }
+
+    document.getElementById("chk_autoUnlock").addEventListener("click",  ActionCheckbox);
+    document.getElementById("chk_debugLog").addEventListener("click",  ActionCheckbox);
+
+    updateStatus();
+  }
+  function initButton(btn)
+  {
+    btn.addEventListener("mousedown",  ActionButtonOn);
+    btn.addEventListener("mouseup",    ActionButtonOff);
+    btn.addEventListener("mouseleave", ActionButtonOff);
+  }
+  function ActionButtonOn() 
+  {
+    console.log(this.name + " pressed");
+    fetch("/cmd?param="+this.name+"&value=1");
+  }
+  function ActionButtonOff() 
+  {
+    console.log(this.name + " released");
+    fetch("/cmd?param="+this.name+"&value=0");
+  }  
+  function ActionCheckbox() 
+  {
+    var val = this.checked ? 1 : 0;
+    console.log(this.name + " checked: " + val);
+    fetch("/cmd?param="+this.name+"&value="+val);
+    this.indeterminate = true;
+  }    
+
+  function updateStatus()
+  {
+    var xhr = new XMLHttpRequest();
+
+    fetch("/status")
+      .then((response) => {
+        return response.json()})
+      .then((status) => {
+        setTimeout(updateStatus, 200);
+        document.getElementById("status").textContent = JSON.stringify(status, null, 1);
+    
+      })
+      .catch((error) => {
+        setTimeout(updateStatus, 10000);
+      });      
+  }
+  </script>
+</body>
+
+</html>

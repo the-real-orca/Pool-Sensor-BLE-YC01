@@ -1,0 +1,112 @@
+<!DOCTYPE HTML><html>
+<head>
+  <title>Config</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta content="de" http-equiv="Content-Language">
+  <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+  <link rel="icon" type="image/png" href="todo.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="topnav">
+    <h1 id="name">Device</h1> <h1>Config</h1>
+    <h3><a href="/">[return]</a></h3>
+  </div>
+  <div class="content">
+    <div class="card config">
+      <label for="cfg_name">Name:</label> <input type="text" id="cfg_name" name="name" placeholder="LX79x" ><br>
+    </div>
+    <div class="card config">
+      <h2>WiFi</h2>
+      <label for="cfg_wifiSSID">SSID:</label> <input type="text" id="cfg_wifiSSID" name="wifiSSID" placeholder="SSID" ><br>
+      <label for="cfg_wifiPassword">Passwort:</label> <input type="password" id="cfg_wifiPassword" name="wifiPassword" placeholder="password" > <button class="togglePassword" for="cfg_wifiPassword">&#x1F441;</button><br>
+    </div>
+    <div class="card config">
+      <h2>Captive Portal</h2>
+      <label for="cfg_portalSSID">SSID:</label> <input type="text" id="cfg_portalSSID" name="portalSSID" placeholder="SSID" ><br>
+      <label for="cfg_portalPassword">Passwort:</label> <input type="text" id="cfg_portalPassword" name="portalPassword" placeholder="portal" ><br>
+    </div>
+    <button id="btn_save" class="button buttonSmall">Save</button>
+  </div>
+
+
+  <script>
+
+    function togglePassword(event) {
+      var targetId = event.srcElement.getAttribute("for");
+      if ( targetId ) {
+        var input = document.getElementById(targetId);
+        if ( input.getAttribute("type") == "password" )
+          input.setAttribute("type", "text");
+        else
+          input.setAttribute("type", "password");
+      }
+
+    }
+
+    window.addEventListener('load', onLoad);
+    function onLoad(event) 
+    {
+      console.log('...init');
+
+      // load config
+      fetch('config.json')
+        .then((response) => response.json())
+        .then((data) => {
+          for (var key in data) {
+            var el = document.getElementById("cfg_"+key);
+            if (el) {
+              if ( el.type=="checkbox" )
+                el.checked = data[key];
+              else
+                el.value = data[key];
+            }
+          }
+        });
+
+      // save config
+      document.getElementById("btn_save").addEventListener("click", ()=>{
+
+        var data = {}
+        for (var el of document.getElementsByTagName("input")) {
+          var key = el.name;
+          if ( el.type=="checkbox" )
+            value = el.checked;
+          else if ( el.type=="number" )
+            value = parseInt(el.value);
+          else
+            value = el.value.trim();
+
+          data[key] = value;
+        }
+
+        console.log(data)
+
+        fetch('config.json', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data, null, 1),
+        })
+          .then(()=>{
+            alert("config saved"); 
+          })
+
+      });
+
+      // inif form
+      for (var el of document.getElementsByClassName("togglePassword") ) {
+        el.addEventListener("click",  togglePassword);
+        var targetId = el.getAttribute("for");
+        if ( targetId ) {
+          var input = document.getElementById(targetId);
+          input.style.width = "8em";
+        }
+      }
+    }
+  </script>
+</body>
+
+</html>

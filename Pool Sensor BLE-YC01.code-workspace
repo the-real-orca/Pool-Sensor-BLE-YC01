@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "ESP32 WiFi Template",
+			"path": "../ESP32 WiFi Template"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"fstream": "cpp",
+			"sstream": "cpp",
+			"streambuf": "cpp"
+		}
+	}
+}

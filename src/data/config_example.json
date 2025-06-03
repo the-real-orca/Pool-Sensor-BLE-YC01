@@ -1,0 +1,7 @@
+{
+ "name": "Device Name",
+ "wifiSSID": "SSID",
+ "wifiPassword": "",
+ "portalSSID": "ESP32-Portal",
+ "portalPassword": ""
+}
