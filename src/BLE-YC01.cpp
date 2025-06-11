@@ -118,7 +118,9 @@ bool BLE_YC01::readData() {
                         result = false;
                     } else {
                         struct sensorReadings_t readings;
-                        readings.time = time(nullptr); // Current time in seconds
+                        time_t now;
+                        time(&now);
+                        readings.time = now; // Current time in seconds
                         readings.type = data[2];
                         readings.pH = toInt16(data, 3) / 100.0; // pH value
                         readings.ec = toInt16(data, 5); // EC value in mV

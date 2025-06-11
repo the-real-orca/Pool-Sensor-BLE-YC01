@@ -133,6 +133,10 @@ void setup()
   webServer.on("/cmd", HTTP_GET, handleCmd);
   webServer.begin();
 
+  // NTP setup
+  const char* ntpServer = "pool.ntp.org";
+  configTime(0, 0, ntpServer); // configure to UTC time zone (0 offset)
+
 
   // MQTT setup
   if ( config.mqttTLS ) {
