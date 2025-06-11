@@ -29,6 +29,8 @@ typedef struct {
 // MQTT configurations
   String mqttServer;
   uint16_t mqttPort;
+  bool mqttTLS;
+  String mqttTopic;
   String mqttUser;
   String mqttPassword;
 

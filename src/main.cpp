@@ -18,6 +18,8 @@
 
 // general configuration
 config_t config;
+char jsonBuffer[256];
+#define LED_PIN 2
 
 // web server
 AsyncWebServer webServer(80);
@@ -26,8 +28,8 @@ Ticker restartTimer;
 // MQTT
 #include <PubSubClient.h>
 #include <WiFiClientSecure.h>
-WiFiClientSecure secureClient;
 WiFiClient wifiClient;
+WiFiClientSecure secureClient;
 PubSubClient mqttClient;
 
 void mqttLoop() {
@@ -46,10 +48,6 @@ void mqttLoop() {
   }
 }
 
-
-
-#define LED_PIN 2
-char jsonBuffer[256];
 
 void handleCmd(AsyncWebServerRequest *request)
 {
@@ -107,17 +105,11 @@ void setup()
   config.portalPassword = doc["portalPassword"] | "";
   config.mqttServer = doc["mqttServer"] | "test.mosquitto.org";
   config.mqttPort = doc["mqttPort"] | 1883;
+  config.mqttTLS = doc["mqttTLS"] | false;
+  config.mqttTopic = doc["mqttTopic"] | "/esp32/sensor/ble-yc01";
   config.mqttUser = doc["mqttUser"] | "";
   config.mqttPassword = doc["mqttPassword"] | "";
   file.close();
-
-// TODO MQTT test
-config.mqttServer = "nas.home";
-config.mqttPort = 8883;
-config.mqttUser = "test";
-config.mqttPassword = "test";
-mqttClient.setClient(secureClient);
-secureClient.setInsecure();
 
   DEBUG_println("config");
   DEBUG_print("  wifiSSID: "); DEBUG_println(config.wifiSSID);
@@ -126,6 +118,8 @@ secureClient.setInsecure();
   DEBUG_print("  portalPassword: "); DEBUG_println(config.portalPassword);
   DEBUG_print("  mqttServer: "); DEBUG_println(config.mqttServer);
   DEBUG_print("  mqttPort: "); DEBUG_println(config.mqttPort);
+  DEBUG_print("  mqttTLS: "); DEBUG_println(config.mqttTLS);
+  DEBUG_print("  mqttTopic: "); DEBUG_println(config.mqttTopic);
   DEBUG_print("  mqttUser: "); DEBUG_println(config.mqttUser);
   DEBUG_print("  mqttPassword: "); DEBUG_println(config.mqttPassword);
   DEBUG_println("");
@@ -134,14 +128,24 @@ secureClient.setInsecure();
   bool isCaptive = captivePortalSetup();
 
   // configure web server
-
   DEBUG_println("starting web server...");
   webServerInit(webServer, isCaptive);
   webServer.on("/cmd", HTTP_GET, handleCmd);
   webServer.begin();
 
-  // TODO
 
+  // MQTT setup
+  if ( config.mqttTLS ) {
+    DEBUG_println("using secure MQTT connection");
+    secureClient.setInsecure();
+    mqttClient.setClient(secureClient);
+  } else {
+    DEBUG_println("using insecure MQTT connection");
+    mqttClient.setClient(wifiClient);
+  }
+
+
+  // TODO
   pinMode(LED_PIN, OUTPUT);
 }
 
@@ -185,7 +189,7 @@ void loop()
 
       // Senden an MQTT
       if ( mqttClient.connected() ) {
-        mqttClient.publish("esp32/sensor/data", jsonBuffer);
+        mqttClient.publish(config.mqttTopic.c_str(), jsonBuffer);
         Serial.println("MQTT sent successfully.");
       }
 
