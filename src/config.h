@@ -26,8 +26,12 @@ typedef struct {
   String portalPassword;
   String wifiSSID;
   String wifiPassword;
-// other configurations
-  String name;
+// MQTT configurations
+  String mqttServer;
+  uint16_t mqttPort;
+  String mqttUser;
+  String mqttPassword;
+
   // TODO: add more configuration parameters as needed
 } config_t;
 extern config_t config;

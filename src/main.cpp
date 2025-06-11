@@ -23,8 +23,33 @@ config_t config;
 AsyncWebServer webServer(80);
 Ticker restartTimer;
 
+// MQTT
+#include <PubSubClient.h>
+#include <WiFiClientSecure.h>
+WiFiClientSecure secureClient;
+WiFiClient wifiClient;
+PubSubClient mqttClient;
+
+void mqttLoop() {
+  if ( mqttClient.connected() ) {
+    mqttClient.loop();
+  } else {
+    mqttClient.setServer(config.mqttServer.c_str(), config.mqttPort);
+    DEBUG_print("connecting to MQTT-broker... ");
+    if ( mqttClient.connect("BLE-YC01", config.mqttUser.c_str(), config.mqttPassword.c_str()) ) {
+      mqttClient.loop();
+      DEBUG_println("ok");
+    } else {
+      DEBUG_print(" \nerror, rc=");
+      DEBUG_println(mqttClient.state());
+    }
+  }
+}
+
+
 
 #define LED_PIN 2
+char jsonBuffer[256];
 
 void handleCmd(AsyncWebServerRequest *request)
 {
@@ -76,27 +101,33 @@ void setup()
   DeserializationError error = deserializeJson(doc, file);
   if (error)
     Serial.println(F("Failed to read file, using default configuration"));
-
-  // import config
-  config.name = doc["name"] | "TODO";
   config.wifiSSID = doc["wifiSSID"] | "SSID";
   config.wifiPassword = doc["wifiPassword"] | "";
   config.portalSSID = doc["portalSSID"] | "ESP32-Portal";
   config.portalPassword = doc["portalPassword"] | "";
-  // TODO additional config parameters
+  config.mqttServer = doc["mqttServer"] | "test.mosquitto.org";
+  config.mqttPort = doc["mqttPort"] | 1883;
+  config.mqttUser = doc["mqttUser"] | "";
+  config.mqttPassword = doc["mqttPassword"] | "";
   file.close();
 
+// TODO MQTT test
+config.mqttServer = "nas.home";
+config.mqttPort = 8883;
+config.mqttUser = "test";
+config.mqttPassword = "test";
+mqttClient.setClient(secureClient);
+secureClient.setInsecure();
+
   DEBUG_println("config");
-  DEBUG_print("  name: ");
-  DEBUG_println(config.name);
-  DEBUG_print("  wifiSSID: ");
-  DEBUG_println(config.wifiSSID);
-  DEBUG_print("  wifiPassword: ");
-  DEBUG_println(config.wifiPassword);
-  DEBUG_print("  portalSSID: ");
-  DEBUG_println(config.portalSSID);
-  DEBUG_print("  portalPassword: ");
-  DEBUG_println(config.portalPassword);
+  DEBUG_print("  wifiSSID: "); DEBUG_println(config.wifiSSID);
+  DEBUG_print("  wifiPassword: "); DEBUG_println(config.wifiPassword);
+  DEBUG_print("  portalSSID: "); DEBUG_println(config.portalSSID);
+  DEBUG_print("  portalPassword: "); DEBUG_println(config.portalPassword);
+  DEBUG_print("  mqttServer: "); DEBUG_println(config.mqttServer);
+  DEBUG_print("  mqttPort: "); DEBUG_println(config.mqttPort);
+  DEBUG_print("  mqttUser: "); DEBUG_println(config.mqttUser);
+  DEBUG_print("  mqttPassword: "); DEBUG_println(config.mqttPassword);
   DEBUG_println("");
 
   // start wifi
@@ -110,12 +141,16 @@ void setup()
   webServer.begin();
 
   // TODO
+
   pinMode(LED_PIN, OUTPUT);
 }
 
 void loop()
 {
   captivePortalLoop();
+  mqttLoop();
+
+  digitalWrite(LED_PIN, HIGH);
 
   Serial.println("Scanning for BLE devices...");
   auto list = BLE_YC01::scan();
@@ -129,17 +164,38 @@ void loop()
     if (device.readData()) {
       Serial.println("Data decoded successfully:");
       auto readings = device.getReadings();
-      Serial.printf("Type: %d, pH: %.2f, EC: %.2f mV, Salt: %.2f g/L, TDS: %.2f mg/L, ORP: %.2f mV, Chlorine: %.2f mg/L, Temp: %.2f °C, Battery: %.2f mV\n",
-        readings.type, readings.pH, readings.ec, readings.salt, readings.tds,
-        readings.orp, readings.chlor, readings.temp, readings.bat);
+      JsonDocument doc;
+      doc["device"] = device.getAddress().toString();
+      doc["name"] = device.getName();
+      doc["sensorType"] = device.getSensorType();
+      doc["type"] = readings.type;
+      doc["time"] = readings.time;
+      doc["pH"] = readings.pH;
+      doc["ec"] = readings.ec; // EC in mV
+      doc["salt"] = readings.salt; // Salt in g/L
+      doc["tds"] = readings.tds; // TDS in mg/L
+      doc["orp"] = readings.orp; // ORP in mV
+      doc["cl"] = readings.cl; // Chlorine in mg/L
+      doc["temp"] = readings.temp; // Temperature in °C
+      doc["bat"] = readings.bat; // Battery in mV
+      serializeJson(doc, jsonBuffer);
+
+
+      Serial.println(jsonBuffer);
+
+      // Senden an MQTT
+      if ( mqttClient.connected() ) {
+        mqttClient.publish("esp32/sensor/data", jsonBuffer);
+        Serial.println("MQTT sent successfully.");
+      }
+
     } else {
       Serial.println("Failed to read data.");
     }
   }
+  
+  digitalWrite(LED_PIN, LOW);
 
   // TODO
-  digitalWrite(LED_PIN, HIGH);
-  delay(2000);
-  digitalWrite(LED_PIN, LOW);
   delay(2000);
 }

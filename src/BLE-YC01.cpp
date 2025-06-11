@@ -118,14 +118,14 @@ bool BLE_YC01::readData() {
                         result = false;
                     } else {
                         struct sensorReadings_t readings;
-
+                        readings.time = time(nullptr); // Current time in seconds
                         readings.type = data[2];
                         readings.pH = toInt16(data, 3) / 100.0; // pH value
                         readings.ec = toInt16(data, 5); // EC value in mV
                         readings.salt = toInt16(data, 5) * 0.55; // Salt value in g/L
                         readings.tds = toInt16(data, 7); // TDS value in mg/L
                         readings.orp = toInt16(data, 9); // ORP value in mV
-                        readings.chlor = toInt16(data, 11) / 10.0; // Chlorine value in mg/L
+                        readings.cl = toInt16(data, 11) / 10.0; // Chlorine value in mg/L
                         readings.temp = toInt16(data, 13) / 10.0; // Temperature value in °C
                         readings.bat = toInt16(data, 15); // Battery value in mV
                         this->readings = readings; // Store the readings

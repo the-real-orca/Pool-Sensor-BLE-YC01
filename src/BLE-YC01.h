@@ -5,12 +5,13 @@
 struct sensorReadings_t
 {
     uint8_t type;
+    time_t time;
     float pH;
     float ec;
     float salt;
     float tds;
     float orp;
-    float chlor;
+    float cl;
     float temp;
     float bat;
 };
