@@ -19,11 +19,12 @@
 // general configuration
 config_t config;
 #define BUFFER_SIZE 512
-char jsonBuffer[BUFFER_SIZE];
+static char jsonBuffer[BUFFER_SIZE];
 #define LED_PIN 2
+static time_t lastScan = 0;
 
 // wifi
-bool isCaptive = false;
+static bool isCaptive = false;
 
 // web server
 AsyncWebServer webServer(80);
@@ -70,8 +71,12 @@ void handleCmd(AsyncWebServerRequest *request)
 
   if (param == "reboot" && val) {
     restartTimer.once(0.5, []() { ESP.restart(); }); 
-  } else if (param == "todo..." && val) {
-    // TODO
+  } else if (param == "scan" && val) {
+    // re-scan
+    config.address = ""; // reset address to force re-scan
+    lastScan = 0; // reset last scan time
+  } else if (param == "read" && val) {
+    lastScan = 0; // reset last scan time
   }
 
   request->send(200, "text/plain", "");
@@ -158,7 +163,8 @@ void setup()
   Serial.print(__DATE__);
   Serial.print(" time: ");
   Serial.println(__TIME__);
-  strcpy(jsonBuffer, "{}");
+  
+  strcpy(jsonBuffer, "{}"); // reset json buffer
 
   // init filesystem
   if (!SPIFFS.begin(true))
@@ -216,7 +222,6 @@ void setup()
 
 void loop()
 {
-  static time_t lastScan = 0;
   time_t now;
   time(&now);
 
@@ -230,6 +235,9 @@ void loop()
     digitalWrite(LED_PIN, HIGH);
     auto list = BLE_YC01::scan();
     Serial.println("Scan complete.");
+
+    JsonDocument doc;
+    doc["time"] = now;
 
     for (const auto& addr : list) {
       Serial.print("Read device: ");
@@ -247,12 +255,13 @@ void loop()
         if ( device.readData() ) {
           Serial.println("Data decoded successfully:");
           auto readings = device.getReadings();
-          JsonDocument doc;
+          doc["status"] = "data read successfully"; // status message
           doc["name"] = device.getName();
           doc["addr"] = device.getAddress().toString();
           doc["sensorType"] = device.getSensorType();
           doc["type"] = readings.type;
-          doc["time"] = readings.time;
+
+          // readings
           doc["pH"] = readings.pH;
           doc["ec"] = readings.ec; // EC in mV
           doc["salt"] = readings.salt; // Salt in g/L
@@ -263,34 +272,54 @@ void loop()
           doc["bat"] = readings.bat; // Battery in mV
           doc["bleRSSI"] = readings.rssi; // BLE RSSI
 
-          // WiFi and MQTT information
-          doc["wifiSSID"] = isCaptive ? config.portalSSID : config.wifiSSID; // WiFi SSID
-          doc["wifiRSSI"] = WiFi.RSSI(); // WiFi RSSI
-          doc["wifiIP"] = isCaptive ? WiFi.softAPIP().toString() : WiFi.localIP().toString(); // WiFi IP address
-          doc["mqttServer"] = config.mqttServer; // MQTT server
-          doc["mqttConnected"] = mqttClient.connected();
-
-          serializeJson(doc, jsonBuffer);
-
-          DEBUG_println(jsonBuffer);
-
-          // Senden an MQTT
-          if ( mqttClient.connected() ) {
-            if ( mqttClient.publish(config.mqttTopic.c_str(), jsonBuffer) ) {
-              DEBUG_print("MQTT sent successfully: "); DEBUG_println(config.mqttTopic);
-            } else {
-              DEBUG_print("MQTT send failed: "); 
-            }
-            mqttClient.loop();
-          }
-
-          lastScan = readings.time;
-
+          lastScan = now;
         } else {
+          doc["status"] = "failed to read data";
           Serial.println("Failed to read data.");
         }
+          break; // exit loop after reading matching device
       }
 
+    }
+
+    if (lastScan != now) {
+      if ( !doc.containsKey("status") ) {
+        Serial.println("No matching device found.");
+      }
+      doc["name"] = config.name;
+      doc["addr"] = config.address;
+      doc["sensorType"] = "unknown";
+      doc["type"] = 0; // no readings available
+      doc["pH"] = 0.0;
+      doc["ec"] = 0.0;
+      doc["salt"] = 0.0;
+      doc["tds"] = 0.0;
+      doc["orp"] = 0.0;
+      doc["cl"] = 0.0;
+      doc["temp"] = 0.0;
+      doc["bat"] = 0.0;
+      doc["bleRSSI"] = 0; // no RSSI available
+    }
+
+    // WiFi and MQTT information
+    doc["wifiSSID"] = isCaptive ? config.portalSSID : config.wifiSSID; // WiFi SSID
+    doc["wifiRSSI"] = WiFi.RSSI(); // WiFi RSSI
+    doc["wifiIP"] = isCaptive ? WiFi.softAPIP().toString() : WiFi.localIP().toString(); // WiFi IP address
+    doc["mqttServer"] = config.mqttServer; // MQTT server
+    doc["mqttConnected"] = mqttClient.connected();
+
+    serializeJson(doc, jsonBuffer);
+
+    DEBUG_println(jsonBuffer);
+
+    // Senden an MQTT
+    if ( mqttClient.connected() ) {
+      if ( mqttClient.publish(config.mqttTopic.c_str(), jsonBuffer) ) {
+        DEBUG_print("MQTT sent successfully: "); DEBUG_println(config.mqttTopic);
+      } else {
+        DEBUG_print("MQTT send failed: "); 
+      }
+      mqttClient.loop();
     }
 
     digitalWrite(LED_PIN, LOW);

@@ -1,13 +1,11 @@
 <!DOCTYPE HTML><html>
 <head>
+  <title>Pool Sensor BLE-YC01</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta content="de" http-equiv="Content-Language" />
   <meta content="text/html; charset=utf-8" http-equiv="Content-Type" />
+  <link rel="icon" type="image/png" href="todo.png">
   <link rel="stylesheet" href="style.css">
-<!--
-  <title>Title</title>
-  <link rel="icon" type="image/png" href="robomower.png">
--->
 </head>
 
 <body>
@@ -18,28 +16,31 @@
     <div class="card">
       <div class="main">
         <h2 id="msg_name" class="">name</h2>
-        <label for="msg_temp">Temperature:</label><b id="msg_temp">--</b><unit for="msg_temp">&deg;C</unit> <span class="info">(20 - 32 &deg;C)</span><br>
+        <label for="msg_temp">Temperature:</label><b id="msg_temp">--</b><unit for="msg_temp">&deg;C</unit> <span class="info">(20 - 33 &deg;C)</span><br>
         <label for="msg_cl">Chlor:</label><b id="msg_cl">--</b><unit for="msg_cl">mg/l</unit> <span class="info small">(0.4 - 1.0 mg/l)</span><br>
         <label for="msg_pH">pH:</label><b id="msg_pH">--</b><unit for="msg_pH"></unit> <span class="info">(7.2 - 7.6)</span><br>
       </div>
       <hr>
       <div>
         <label for="msg_sensorType">Sensor:</label><span id="msg_sensorType"></span> (<span id="msg_addr">xx</span>)<br>
-        <label for="msg_bat">Batterie:</label><span id="msg_bat">--</span><unit for="msg_bat">mV</unit> <span class="info small">(2400 - 3200mV)</span><br>
+        <label for="msg_bat">Battery:</label><span id="msg_bat">--</span><unit for="msg_bat">mV</unit> <span class="info small">(2400 - 3200mV)</span><br>
         <label for="msg_ec">EC:</label><span id="msg_ec">--</span><unit for="msg_ec">&micro;S/cm</unit> <span class="info small">(1000 - 2500 &micro;S/cm)</span><br>
         <label for="msg_tds">TDS:</label><span id="msg_tds">--</span><unit for="msg_tds">ppm</unit> <span class="info small">(500 - 3000 ppm)</span><br>
         <label for="msg_orp">ORP:</label><span id="msg_orp">--</span><unit for="msg_orp">mV</unit> <span class="info small">(600 - 800 mV)</span><br>
-        <label for="msg_salt">Salz:</label><span id="msg_salt">--</span><unit for="msg_salt">ppm</unit> <br>
-        <label for="datetime">Zeitstempel:</label><span id="datetime"></span><br>
+        <label for="msg_salt">Salt:</label><span id="msg_salt">--</span><unit for="msg_salt">mg/l</unit> <br>
+        <label for="datetime">Timestamp:</label><span id="datetime"></span><br>
+        <label for="msg_status">Status:</label><span id="msg_status">--</span><br>
       </div>
-
-<!--      <button name="ok" id="btn_ok" class="button">Ok</button> -->
     </div>
     <div class="card secondary">
       <div id="toggle_config" class="toggle_card">&#x1F6E0;</div>
       <div id="config" class="hide">
         <p id="msg" style="color:grey">status ...</p>
         <hr>
+        <p>
+          <button name="read" id="btn_read" class="button">read</button>
+          <button name="scan" id="btn_scan" class="button">re-scan</button>
+        </p>
         <p>
           <a href="config" class="button buttonSmall">config</a>
           <a href="update" class="button buttonSmall small">update ESP <br> Filesystem</a>
