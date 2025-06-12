@@ -21,7 +21,7 @@ const char *RELOADPREV_HTML =
 #include "reloadprev.html.h"
     ;
 
-Ticker restartTick;
+static Ticker restartTick;
 
 // format bytes
 String formatBytes(size_t bytes)
@@ -32,7 +32,7 @@ String formatBytes(size_t bytes)
     }
     else if (bytes < (1024 * 1024))
     {
-        return String(bytes / 1024.0) + "KB";
+        return String(bytes / 1024.0) + "kB";
     }
     else if (bytes < (1024 * 1024 * 1024))
     {
@@ -241,7 +241,8 @@ void webServerInit(AsyncWebServer &webServer, bool isCaptive)
         File file = SPIFFS.open("/config.json", "w");
         file.write(data, len);
         file.close();
-        DEBUG_println("config.json saved");
+        DEBUG_println("config.json saved, reboot device in 2 second");
+        restartTick.once(2, []() { ESP.restart(); });
     });
 
     // enable CORS for all origins

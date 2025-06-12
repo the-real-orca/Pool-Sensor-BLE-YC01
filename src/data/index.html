@@ -12,21 +12,37 @@
 
 <body>
   <div class="topnav">
-    <h1 id="title">TITLE</h1>
+    <h1 id="title">Pool Sensor BLE-YC01</h1>
   </div>
   <div class="content">
     <div class="card">
-      <div id="msg" class="info">---</div>
-      <button name="ok" id="btn_ok" class="button">Ok</button>
-    <br>
+      <div class="main">
+        <h2 id="msg_name" class="">name</h2>
+        <label for="msg_temp">Temperature:</label><b id="msg_temp">--</b><unit for="msg_temp">&deg;C</unit> <span class="info">(20 - 32 &deg;C)</span><br>
+        <label for="msg_cl">Chlor:</label><b id="msg_cl">--</b><unit for="msg_cl">mg/l</unit> <span class="info small">(0.4 - 1.0 mg/l)</span><br>
+        <label for="msg_pH">pH:</label><b id="msg_pH">--</b><unit for="msg_pH"></unit> <span class="info">(7.2 - 7.6)</span><br>
+      </div>
+      <hr>
+      <div>
+        <label for="msg_sensorType">Sensor:</label><span id="msg_sensorType"></span> (<span id="msg_addr">xx</span>)<br>
+        <label for="msg_bat">Batterie:</label><span id="msg_bat">--</span><unit for="msg_bat">mV</unit> <span class="info small">(2400 - 3200mV)</span><br>
+        <label for="msg_ec">EC:</label><span id="msg_ec">--</span><unit for="msg_ec">&micro;S/cm</unit> <span class="info small">(1000 - 2500 &micro;S/cm)</span><br>
+        <label for="msg_tds">TDS:</label><span id="msg_tds">--</span><unit for="msg_tds">ppm</unit> <span class="info small">(500 - 3000 ppm)</span><br>
+        <label for="msg_orp">ORP:</label><span id="msg_orp">--</span><unit for="msg_orp">mV</unit> <span class="info small">(600 - 800 mV)</span><br>
+        <label for="msg_salt">Salz:</label><span id="msg_salt">--</span><unit for="msg_salt">ppm</unit> <br>
+        <label for="datetime">Zeitstempel:</label><span id="datetime"></span><br>
+      </div>
+
+<!--      <button name="ok" id="btn_ok" class="button">Ok</button> -->
+    </div>
     <div class="card secondary">
       <div id="toggle_config" class="toggle_card">&#x1F6E0;</div>
       <div id="config" class="hide">
-        <p id="status" style="color:grey">status ...</p>
+        <p id="msg" style="color:grey">status ...</p>
         <hr>
         <p>
           <a href="config" class="button buttonSmall">config</a>
-          <a href="update" class="button buttonSmall">update ESP</a>
+          <a href="update" class="button buttonSmall small">update ESP <br> Filesystem</a>
           <button name="reboot" id="btn_reboot" class="button buttonred buttonSmall">reboot</button>
         </p>
       </div>
@@ -50,22 +66,7 @@
     }
   }
 
-  function onLoad(event) 
-  {
-    console.log('...init');
-    for (var el of document.querySelectorAll(".toggle_card") ) {
-      el.addEventListener("click",  ActionToggleCard);
-    }
 
-    for (var btn of document.getElementsByTagName("button") ) {
-      initButton(btn);
-    }
-
-    document.getElementById("chk_autoUnlock").addEventListener("click",  ActionCheckbox);
-    document.getElementById("chk_debugLog").addEventListener("click",  ActionCheckbox);
-
-    updateStatus();
-  }
   function initButton(btn)
   {
     btn.addEventListener("mousedown",  ActionButtonOn);
@@ -92,20 +93,41 @@
 
   function updateStatus()
   {
-    var xhr = new XMLHttpRequest();
-
-    fetch("/status")
-      .then((response) => {
-        return response.json()})
-      .then((status) => {
-        setTimeout(updateStatus, 200);
-        document.getElementById("status").textContent = JSON.stringify(status, null, 1);
-    
+    // load config
+    fetch('status')
+      .then((response) => response.json())
+      .then((data) => {
+        setTimeout(updateStatus, 2000);
+        document.getElementById("msg").textContent = JSON.stringify(data, null, 1);
+        for (var key in data) {
+          var el = document.getElementById("msg_"+key);
+          if (el) {
+            if ( el.type=="checkbox" )
+              el.checked = data[key];
+            else
+              el.textContent = data[key];
+          }
+        }
+        document.getElementById("datetime").textContent = new Date(data.time * 1000).toLocaleString();
       })
       .catch((error) => {
         setTimeout(updateStatus, 10000);
       });      
   }
+
+  function onLoad(event) 
+  {
+    console.log('...init');
+    for (var el of document.querySelectorAll(".toggle_card") ) {
+      el.addEventListener("click",  ActionToggleCard);
+    }
+
+    for (var btn of document.getElementsByTagName("button") ) {
+      initButton(btn);
+    }
+
+    updateStatus();
+  }  
   </script>
 </body>
 

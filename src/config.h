@@ -33,7 +33,10 @@ typedef struct {
   String mqttTopic;
   String mqttUser;
   String mqttPassword;
-
+// BLE-YC01 configurations
+  uint16_t interval;
+  String name;
+  String address;
   // TODO: add more configuration parameters as needed
 } config_t;
 extern config_t config;

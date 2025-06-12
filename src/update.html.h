@@ -21,7 +21,7 @@ R"(
         ajax.upload.addEventListener('progress', ()=>{
           var percent = Math.round((event.loaded / event.total) * 100);
           document.getElementById('espProgress').textContent = percent + '%% uploading ...';
-         }, false);
+        }, false);
         ajax.addEventListener('load', ()=>{
           document.getElementById('espProgress').textContent = 'upload finished';
           alert('firmware upload finished, restarting ...');
