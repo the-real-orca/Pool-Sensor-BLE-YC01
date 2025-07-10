@@ -6,6 +6,7 @@
 #include <Update.h>
 #include <Ticker.h>
 
+#include <WiFi.h>
 #include "webUtils.h"
 #include "config.h"
 
@@ -244,6 +245,20 @@ void webServerInit(AsyncWebServer &webServer, bool isCaptive)
         DEBUG_println("config.json saved, reboot device in 2 second");
         restartTick.once(2, []() { ESP.restart(); });
     });
+    webServer.on("/wifiList", HTTP_GET, [](AsyncWebServerRequest *request) {
+        String wifiListJson ="[";
+        int n = WiFi.scanNetworks();
+        for (int i = 0; i < n; ++i) {
+            if ( i > 0 )
+                wifiListJson += ", ";
+            wifiListJson += "{ \"ssid\": \"" + WiFi.SSID(i) +"\", \"rssi\": \"" + WiFi.RSSI(i) + "\"}";
+        }
+        wifiListJson += "]";
+
+        request->send(200, "application/json", wifiListJson); 
+    });
+    
+
 
     // enable CORS for all origins
     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");

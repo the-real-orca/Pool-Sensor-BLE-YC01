@@ -19,7 +19,7 @@
 // general configuration
 config_t config;
 #define BUFFER_SIZE 512
-static char jsonBuffer[BUFFER_SIZE];
+static char statusJsonBuffer[BUFFER_SIZE];
 #define LED_PIN 2
 static time_t lastScan = 0;
 
@@ -164,7 +164,7 @@ void setup()
   Serial.print(" time: ");
   Serial.println(__TIME__);
   
-  strcpy(jsonBuffer, "{}"); // reset json buffer
+  strcpy(statusJsonBuffer, "{}"); // reset json buffer
 
   // init filesystem
   if (!SPIFFS.begin(true))
@@ -187,7 +187,7 @@ void setup()
   webServerInit(webServer, isCaptive);
   webServer.on("/cmd", HTTP_GET, handleCmd);
   webServer.on("/status", HTTP_GET, [](AsyncWebServerRequest *request) {
-      request->send(200, "application/json", jsonBuffer); 
+      request->send(200, "application/json", statusJsonBuffer); 
   });
   webServer.begin();
 
@@ -308,13 +308,13 @@ void loop()
     doc["mqttServer"] = config.mqttServer; // MQTT server
     doc["mqttConnected"] = mqttClient.connected();
 
-    serializeJson(doc, jsonBuffer);
+    serializeJson(doc, statusJsonBuffer);
 
-    DEBUG_println(jsonBuffer);
+    DEBUG_println(statusJsonBuffer);
 
     // Senden an MQTT
     if ( mqttClient.connected() ) {
-      if ( mqttClient.publish(config.mqttTopic.c_str(), jsonBuffer) ) {
+      if ( mqttClient.publish(config.mqttTopic.c_str(), statusJsonBuffer) ) {
         DEBUG_print("MQTT sent successfully: "); DEBUG_println(config.mqttTopic);
       } else {
         DEBUG_print("MQTT send failed: "); 

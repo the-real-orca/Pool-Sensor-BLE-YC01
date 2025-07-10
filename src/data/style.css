@@ -29,6 +29,23 @@ unit {
   font-size: 95%;
   text-align: left;
 }
+
+.wifiList > li {
+  display: block;
+  margin: 0.5em;
+  text-decoration: underline;
+}
+.wifiList .rssi {
+  font-size: 95%;
+  font-style: italic;
+  color:#808080;
+}
+.wifiList .rssi::before {
+  content: "(";
+}
+.wifiList .rssi::after {
+  content: "dB)";
+}
 .config > label {
   width: 5em;
   text-align: right;  
