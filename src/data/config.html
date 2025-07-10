@@ -22,10 +22,10 @@
     </div>
     <div class="card config">
       <h2>WiFi</h2>
+      <template id="wifiTemplate">
+        <li> <span class="ssid"></span> <span class="enc">&#x1F512;</span> <span class="rssi"></span> </li>
+      </template>
       <ul class="wifiList" id="wifiList">
-        <template id="wifiTemplate">
-          <li> <span class="ssid"></span> <span class="rssi"></span> </li>
-        </template>
       </ul>
       <label for="cfg_wifiSSID">SSID:</label> <input type="text" id="cfg_wifiSSID" name="wifiSSID" placeholder="SSID" ><br>
       <label for="cfg_wifiPassword">Password:</label> <input type="password" id="cfg_wifiPassword" name="wifiPassword" placeholder="password" > <button class="togglePassword" for="cfg_wifiPassword">&#x1F441;</button><br>
@@ -65,20 +65,24 @@
 
     }
 
-    async function ladeWifiListe() {
+    async function loadWifiListe() {
         fetch('wifiList')
           .then((response) => response.json())
           .then((data) => {
             const wifiList = document.getElementById("wifiList");
             const template = document.getElementById("wifiTemplate");
 
-            for (const wlan of data) {
+            wifiList.innerHTML = "";
+            for (const wifiEntry of data) {
               var clone = template.content.cloneNode(true);
-              clone.querySelector("li").onclick = () => fillSSID(wlan.ssid);
-              clone.querySelector(".ssid").textContent = wlan.ssid;
-              clone.querySelector(".rssi").textContent = wlan.rssi;
+              clone.querySelector("li").onclick = function() { fillSSID(wifiEntry.ssid) };
+              clone.querySelector(".ssid").textContent = wifiEntry.ssid;
+              if ( wifiEntry.enc == 0 )
+                clone.querySelector(".enc").style.display = "none";
+              clone.querySelector(".rssi").textContent = wifiEntry.rssi;
               wifiList.appendChild(clone);
             }
+
           });
     }
 
@@ -88,8 +92,7 @@
       console.log('...init');
 
       // load wifi list
-      ladeWifiListe();
-      setInterval(ladeWifiListe, 5000);
+      loadWifiListe();
 
       // load config
       fetch('config.json')

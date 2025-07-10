@@ -74,9 +74,9 @@ void handleCmd(AsyncWebServerRequest *request)
   } else if (param == "scan" && val) {
     // re-scan
     config.address = ""; // reset address to force re-scan
-    lastScan = 0; // reset last scan time
+    lastScan = -config.interval; // reset last scan time
   } else if (param == "read" && val) {
-    lastScan = 0; // reset last scan time
+    lastScan = -config.interval; // reset last scan time
   }
 
   request->send(200, "text/plain", "");
@@ -214,6 +214,8 @@ void setup()
     mqttClient.setBufferSize(BUFFER_SIZE + MQTT_MAX_HEADER_SIZE + 10);
   }
 
+  // reset BLE scan
+  lastScan = -config.interval;
 
   // configure status LED
   pinMode(LED_PIN, OUTPUT);
@@ -228,6 +230,7 @@ void loop()
   // handle network tasks
   captivePortalLoop();
   mqttLoop();
+  webUtilsLoop();
 
   // scan for BLE devices & read data
   if ( (now - lastScan) > config.interval) { // scan and read data every x sceconds
@@ -277,7 +280,8 @@ void loop()
           doc["status"] = "failed to read data";
           Serial.println("Failed to read data.");
         }
-          break; // exit loop after reading matching device
+
+        break; // exit loop after reading matching device
       }
 
     }
@@ -299,6 +303,9 @@ void loop()
       doc["temp"] = 0.0;
       doc["bat"] = 0.0;
       doc["bleRSSI"] = 0; // no RSSI available
+
+//      lastScan = now - (config.interval/2);
+      lastScan = now - config.interval + 5;
     }
 
     // WiFi and MQTT information
@@ -326,5 +333,5 @@ void loop()
   }
 
   // wait
-  delay(1000);
+  delay(100);
 }

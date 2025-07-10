@@ -68,7 +68,7 @@ std::vector<NimBLEAddress> BLE_YC01::scan()
     std::vector<NimBLEAddress> addrList;
     NimBLEDevice::init("");
     NimBLEScan *pScan = NimBLEDevice::getScan();
-    NimBLEScanResults results = pScan->getResults(5000);
+    NimBLEScanResults results = pScan->getResults(2500);
 
     // Iterate through the results
     for (int i = 0; i < results.getCount(); i++) {

@@ -1,5 +1,6 @@
 
 #include <Arduino.h>
+#include <map>
 
 #include <ESPAsyncWebServer.h>
 #include <SPIFFS.h>
@@ -199,6 +200,48 @@ void handleFileDelete(AsyncWebServerRequest *request)
     }
 }
 
+struct WifiEntry {
+    String ssid;
+    int32_t rssi;
+    uint8_t encryptionType;
+    uint8_t channel;
+};
+
+bool scanWifi = false;
+String wifiListJson = "[]";
+void scanWifiNetworks() {
+    std::map<String, WifiEntry> bestBySSID;
+  
+    int n = WiFi.scanNetworks();
+    for (int i = 0; i < n; ++i) {
+      String ssid = WiFi.SSID(i);
+      int32_t rssi = WiFi.RSSI(i);
+      uint8_t enc = WiFi.encryptionType(i);
+      uint8_t chan = WiFi.channel(i);
+  
+      if (ssid.length() == 0) continue;  // ignore empty SSIDs
+  
+      if (bestBySSID.find(ssid) == bestBySSID.end() || rssi > bestBySSID[ssid].rssi) {
+        bestBySSID[ssid] = {ssid, rssi, enc, chan};
+      }
+    }
+  
+    wifiListJson = "";
+    for (auto const& pair : bestBySSID) {
+      if ( wifiListJson.isEmpty() )
+        wifiListJson = "[";
+        else
+        wifiListJson += ",";
+      wifiListJson += "{";
+      wifiListJson += "\"ssid\":\"" + pair.second.ssid + "\"";
+      wifiListJson += ",\"enc\": " + String(pair.second.encryptionType);
+      wifiListJson += ",\"rssi\": " + String(pair.second.rssi);
+      wifiListJson += "}";
+    }
+    wifiListJson += "]";
+    DEBUG_println("WiFi Scan completed.");
+}
+
 void webServerInit(AsyncWebServer &webServer, bool isCaptive)
 {
 
@@ -232,7 +275,12 @@ void webServerInit(AsyncWebServer &webServer, bool isCaptive)
     }, handleFileUpload);
     webServer.on("/del", HTTP_GET, handleFileDelete);
 
-    webServer.serveStatic("/config", SPIFFS, "/config.html");
+    webServer.on("/config", HTTP_GET, [](AsyncWebServerRequest *request){
+        request->send(SPIFFS, "/config.html", "text/html");
+        DEBUG_println("config -> config.html");
+        scanWifi = true; // trigger wifi scan on config load
+      });
+
     webServer.on("/config.json", HTTP_PUT, [](AsyncWebServerRequest *request) {
         request->send(200,"text/plain", "ok");
     }, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
@@ -246,15 +294,6 @@ void webServerInit(AsyncWebServer &webServer, bool isCaptive)
         restartTick.once(2, []() { ESP.restart(); });
     });
     webServer.on("/wifiList", HTTP_GET, [](AsyncWebServerRequest *request) {
-        String wifiListJson ="[";
-        int n = WiFi.scanNetworks();
-        for (int i = 0; i < n; ++i) {
-            if ( i > 0 )
-                wifiListJson += ", ";
-            wifiListJson += "{ \"ssid\": \"" + WiFi.SSID(i) +"\", \"rssi\": \"" + WiFi.RSSI(i) + "\"}";
-        }
-        wifiListJson += "]";
-
         request->send(200, "application/json", wifiListJson); 
     });
     
@@ -266,4 +305,12 @@ void webServerInit(AsyncWebServer &webServer, bool isCaptive)
     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Accept, Content-Type, Authorization");
     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Credentials", "true");
     
+}
+
+void webUtilsLoop() 
+{
+    if (scanWifi ) {
+        scanWifi = false;
+        scanWifiNetworks();
+    }
 }
