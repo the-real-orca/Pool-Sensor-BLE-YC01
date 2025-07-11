@@ -93,6 +93,7 @@
 
       // load wifi list
       loadWifiListe();
+      setInterval(loadWifiListe, 5000);
 
       // load config
       fetch('config.json')

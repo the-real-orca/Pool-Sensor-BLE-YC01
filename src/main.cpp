@@ -89,21 +89,22 @@ void readConfig()
   DeserializationError error = deserializeJson(doc, file);
   if (error)
     Serial.println(F("Failed to read file, using default configuration"));
+
   config.wifiSSID = doc["wifiSSID"] | "SSID";
   config.wifiPassword = doc["wifiPassword"] | "";
   config.portalSSID = doc["portalSSID"] | "ESP32-Portal";
   config.portalPassword = doc["portalPassword"] | "";
   config.mqttServer = doc["mqttServer"] | "";
-  config.mqttPort = doc["mqttPort"] | 0;
+  config.mqttPort = doc["mqttPort"].as<uint16_t>(); if ( !config.mqttPort) config.mqttPort = 1883;
   config.mqttTLS = doc["mqttTLS"] | false;
   config.mqttTopic = doc["mqttTopic"] | "/esp32/sensor/ble-yc01";
   config.mqttUser = doc["mqttUser"] | "";
   config.mqttPassword = doc["mqttPassword"] | "";
-  config.interval = doc["interval"] | 900; // every 15 minutes
+  config.interval = doc["interval"].as<uint16_t>(); if ( !config.interval) config.interval = 900;
   config.name = doc["name"] | "";
   config.address = doc["addr"] | "";
-
   file.close();
+
 
   DEBUG_println("config");
   DEBUG_print("  wifiSSID: "); DEBUG_println(config.wifiSSID);
@@ -169,6 +170,8 @@ void setup()
   // init filesystem
   if (!SPIFFS.begin(true))
     Serial.println(F("init SPIFFS error"));
+
+  delay (500); // wait for filesystem to be ready
 
   if (!SPIFFS.exists("/index.html"))
   {
@@ -241,6 +244,8 @@ void loop()
 
     JsonDocument doc;
     doc["time"] = now;
+    doc["name"] = config.name;
+ 
 
     for (const auto& addr : list) {
       Serial.print("Read device: ");
@@ -259,8 +264,7 @@ void loop()
           Serial.println("Data decoded successfully:");
           auto readings = device.getReadings();
           doc["status"] = "data read successfully"; // status message
-          doc["name"] = device.getName();
-          doc["addr"] = device.getAddress().toString();
+          doc["addr"] = device.getAddress().toString(); // device address
           doc["sensorType"] = device.getSensorType();
           doc["type"] = readings.type;
 
@@ -287,10 +291,9 @@ void loop()
     }
 
     if (lastScan != now) {
-      if ( !doc.containsKey("status") ) {
+      if ( doc["status"].isNull() ) {
         Serial.println("No matching device found.");
       }
-      doc["name"] = config.name;
       doc["addr"] = config.address;
       doc["sensorType"] = "unknown";
       doc["type"] = 0; // no readings available
@@ -311,6 +314,7 @@ void loop()
     // WiFi and MQTT information
     doc["wifiSSID"] = isCaptive ? config.portalSSID : config.wifiSSID; // WiFi SSID
     doc["wifiRSSI"] = WiFi.RSSI(); // WiFi RSSI
+    doc["wifiRSSI"] = WiFi.RSSI();
     doc["wifiIP"] = isCaptive ? WiFi.softAPIP().toString() : WiFi.localIP().toString(); // WiFi IP address
     doc["mqttServer"] = config.mqttServer; // MQTT server
     doc["mqttConnected"] = mqttClient.connected();

@@ -295,6 +295,7 @@ void webServerInit(AsyncWebServer &webServer, bool isCaptive)
     });
     webServer.on("/wifiList", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->send(200, "application/json", wifiListJson); 
+        scanWifi = true; // trigger wifi scan on config load
     });
     
 

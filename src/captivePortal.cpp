@@ -7,7 +7,7 @@
 
 #include "config.h"
 
-#define WIFI_TIMEOUT 4000 // timeout for WiFi connection attempts in ms
+#define WIFI_TIMEOUT 5000 // timeout for WiFi connection attempts in ms
 IPAddress apIP(192, 168, 4, 1);
 
 DNSServer dnsServer;
