@@ -38,19 +38,9 @@ WiFiClientSecure secureClient;
 PubSubClient mqttClient;
 
 void mqttLoop() {
-  if ( config.mqttPort ) {
+  if ( config.mqttPort && !isCaptive) {
     if ( mqttClient.connected() ) {
       mqttClient.loop();
-    } else {
-      mqttClient.setServer(config.mqttServer.c_str(), config.mqttPort);
-      DEBUG_print("connecting to MQTT-broker... ");
-      if ( mqttClient.connect("BLE-YC01", config.mqttUser.c_str(), config.mqttPassword.c_str()) ) {
-        mqttClient.loop();
-        DEBUG_println("ok");
-      } else {
-        DEBUG_print(" \nerror, rc=");
-        DEBUG_println(mqttClient.state());
-      }
     }
   }    
 }
@@ -95,12 +85,12 @@ void readConfig()
   config.portalSSID = doc["portalSSID"] | "ESP32-Portal";
   config.portalPassword = doc["portalPassword"] | "";
   config.mqttServer = doc["mqttServer"] | "";
-  config.mqttPort = doc["mqttPort"].as<uint16_t>(); if ( !config.mqttPort) config.mqttPort = 1883;
+  config.mqttPort = doc["mqttPort"] | 1883;
   config.mqttTLS = doc["mqttTLS"] | false;
   config.mqttTopic = doc["mqttTopic"] | "/esp32/sensor/ble-yc01";
   config.mqttUser = doc["mqttUser"] | "";
   config.mqttPassword = doc["mqttPassword"] | "";
-  config.interval = doc["interval"].as<uint16_t>(); if ( !config.interval) config.interval = 900;
+  config.interval = doc["interval"] | 900;
   config.name = doc["name"] | "";
   config.address = doc["addr"] | "";
   file.close();
@@ -200,10 +190,10 @@ void setup()
 
 
   // MQTT setup
-  if ( config.mqttServer.isEmpty() || config.mqttPort == 0 || isCaptive ) {
+  if ( config.mqttServer.isEmpty() || config.mqttPort == 0 ) {
     config.mqttPort = 0;  // disable MQTT if no server is configured or in captive portal mode
   }
-  if ( config.mqttPort )
+  if ( config.mqttPort && !isCaptive )
   {
     // configure MQTT client
     if ( config.mqttTLS ) {
@@ -237,6 +227,7 @@ void loop()
 
   // scan for BLE devices & read data
   if ( (now - lastScan) > config.interval) { // scan and read data every x sceconds
+    // BLE
     Serial.println("Scanning for BLE devices...");
     digitalWrite(LED_PIN, HIGH);
     auto list = BLE_YC01::scan();
@@ -289,6 +280,7 @@ void loop()
       }
 
     }
+    digitalWrite(LED_PIN, LOW);
 
     if (lastScan != now) {
       if ( doc["status"].isNull() ) {
@@ -323,17 +315,29 @@ void loop()
 
     DEBUG_println(statusJsonBuffer);
 
-    // Senden an MQTT
-    if ( mqttClient.connected() ) {
-      if ( mqttClient.publish(config.mqttTopic.c_str(), statusJsonBuffer) ) {
-        DEBUG_print("MQTT sent successfully: "); DEBUG_println(config.mqttTopic);
-      } else {
-        DEBUG_print("MQTT send failed: "); 
+    // MQTT
+    if ( config.mqttPort && !isCaptive ) {
+      if ( !mqttClient.connected() ) {
+        DEBUG_print("connecting to MQTT-broker... ");
+        mqttClient.setServer(config.mqttServer.c_str(), config.mqttPort);
+        if ( mqttClient.connect("BLE-YC01", config.mqttUser.c_str(), config.mqttPassword.c_str()) ) {
+          mqttClient.loop();
+          DEBUG_println("ok");
+        } else {
+          DEBUG_print(" \nerror, rc=");
+          DEBUG_println(mqttClient.state());
+        }
       }
-      mqttClient.loop();
+      if ( mqttClient.connected() ) {
+        if ( mqttClient.publish(config.mqttTopic.c_str(), statusJsonBuffer) ) {
+          DEBUG_print("MQTT sent successfully: "); DEBUG_println(config.mqttTopic);
+        } else {
+          DEBUG_print("MQTT send failed: "); 
+        }
+        mqttClient.loop();
+      }
     }
 
-    digitalWrite(LED_PIN, LOW);
   }
 
   // wait
