@@ -88,7 +88,7 @@ String templateProcessorUpdate(const String &var)
         while (file)
         {
             String filename(file.name());
-            str += "<li><a href='" + filename + "'>" + filename + "</a> (" + formatBytes(file.size()) + ")  <b><a href='del?file=" + filename + "'>X</a></b></li>";
+            str += "<li><a href='" + filename + "'>" + filename + "</a> (" + formatBytes(file.size()) + ")  <b><i><a href='del?file=" + filename + "'>(del)</a></i></b></li>";
             file = root.openNextFile();
         }
         str += "</ul>";
@@ -110,6 +110,10 @@ String templateProcessorUpdate(const String &var)
         size_t used = SPIFFS.usedBytes();
         return String(formatBytes(total - used));
     }
+    else if (var == "BUILDDATE")
+    {
+        return String(__DATE__ + String(" ") + __TIME__);
+    }    
     return String();
 }
 

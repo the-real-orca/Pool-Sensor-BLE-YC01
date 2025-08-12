@@ -72,7 +72,8 @@ R"(
   <h1>Update</h1>
   <h2>ESP32</h2>
   <div>
-    <p>Upload a new ESP32 firmware (*.bin)</p>
+    <p>current firmware build date:<br>&nbsp;<i>%BUILDDATE%</i></p>
+    <p>upload a new ESP32 firmware (*.bin)</p>
     <input id='espUpdate' type='file' accept='.bin'>
     <button onclick='uploadBin()'>Update Firmware</button>
     <i id='espProgress'></i>

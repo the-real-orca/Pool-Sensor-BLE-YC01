@@ -242,18 +242,16 @@ void loop()
       Serial.print("Read device: ");
       Serial.println(addr.toString().c_str());
       
-      // save address to config if no device address is set
-      if ( config.address.isEmpty() ) {
-        config.address = addr.toString().c_str();
-        saveConfig();
-      }
-
-      // read data from device if address matches
-      if ( compareBLEAddress(addr, config.address) ) {
+      // read data from device if address matches or address is empty
+      if ( config.address.isEmpty() || compareBLEAddress(addr, config.address) ) {
         BLE_YC01 device(addr, config.name);
+        sensorReadings_t readings = {0};
         if ( device.readData() ) {
+          readings = device.getReadings();
+        }
+        if ( readings.type ) {
           Serial.println("Data decoded successfully:");
-          auto readings = device.getReadings();
+
           doc["status"] = "data read successfully"; // status message
           doc["addr"] = device.getAddress().toString(); // device address
           doc["sensorType"] = device.getSensorType();
@@ -289,18 +287,18 @@ void loop()
       doc["addr"] = config.address;
       doc["sensorType"] = "unknown";
       doc["type"] = 0; // no readings available
-      doc["pH"] = 0.0;
-      doc["ec"] = 0.0;
-      doc["salt"] = 0.0;
-      doc["tds"] = 0.0;
-      doc["orp"] = 0.0;
-      doc["cl"] = 0.0;
-      doc["temp"] = 0.0;
-      doc["bat"] = 0.0;
-      doc["bleRSSI"] = 0; // no RSSI available
+      // doc["pH"] = 0.0;
+      // doc["ec"] = 0.0;
+      // doc["salt"] = 0.0;
+      // doc["tds"] = 0.0;
+      // doc["orp"] = 0.0;
+      // doc["cl"] = 0.0;
+      // doc["temp"] = 0.0;
+      // doc["bat"] = 0.0;
+      // doc["bleRSSI"] = 0; // no RSSI available
 
 //      lastScan = now - (config.interval/2);
-      lastScan = now - config.interval + 5;
+      lastScan = now - config.interval + 10; // next scan in 10 seconds
     }
 
     // WiFi and MQTT information

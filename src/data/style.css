@@ -44,7 +44,7 @@ unit {
   content: "(";
 }
 .wifiList .rssi::after {
-  content: "dB)";
+  content: "dBm)";
 }
 .config > label {
   width: 5em;
