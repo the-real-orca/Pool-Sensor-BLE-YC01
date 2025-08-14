@@ -271,6 +271,8 @@ void loop()
           lastScan = now;
         } else {
           doc["status"] = "failed to read data";
+          doc["bleRSSI"] = readings.rssi; // BLE RSSI
+          doc["sensorType"] = "unknown";
           Serial.println("Failed to read data.");
         }
 
@@ -282,6 +284,7 @@ void loop()
 
     if (lastScan != now) {
       if ( doc["status"].isNull() ) {
+        doc["status"] = "no matching device found"; // status message
         Serial.println("No matching device found.");
       }
       doc["addr"] = config.address;
