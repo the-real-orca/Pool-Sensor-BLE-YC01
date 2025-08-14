@@ -1,9 +1,0 @@
-A very simple esp32 antenna Mod, amazing results
-https://www.youtube.com/watch?v=Cd8pPJjlpEE
-
-ESP32 External Antenna Attachment Tutorial
-https://www.youtube.com/watch?v=o4mtrueU6eM
-
-
-Antenna 1/2 length: theory: 62mm optimal: 58mm (D:0.5mm)
-
