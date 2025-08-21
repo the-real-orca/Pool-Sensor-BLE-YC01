@@ -21,10 +21,11 @@ config_t config;
 #define BUFFER_SIZE 512
 static char statusJsonBuffer[BUFFER_SIZE];
 #define LED_PIN 2
-static time_t lastScan = 0;
+static uint32_t lastScan = 0;
 
 // wifi
 static bool isCaptive = false;
+static uint32_t diconnectedAt = 0; // timestamp when the device was disconnected from WiFi
 
 // web server
 AsyncWebServer webServer(80);
@@ -82,9 +83,10 @@ void readConfig()
 
   config.wifiSSID = doc["wifiSSID"] | "SSID";
   config.wifiPassword = doc["wifiPassword"] | "";
+  config.wifiTimeout = doc["wifiTimeout"] | 600;
   config.portalSSID = doc["portalSSID"] | "ESP32-Portal";
   config.portalPassword = doc["portalPassword"] | "";
-  config.portalTimeout = doc["portalTimeout"] | 30; // TODO 600
+  config.portalTimeout = doc["portalTimeout"] | 600;
   config.mqttServer = doc["mqttServer"] | "";
   config.mqttPort = doc["mqttPort"] | 1883;
   config.mqttTLS = doc["mqttTLS"] | false;
@@ -100,6 +102,7 @@ void readConfig()
   DEBUG_println("config");
   DEBUG_print("  wifiSSID: "); DEBUG_println(config.wifiSSID);
   DEBUG_print("  wifiPassword: "); DEBUG_println(config.wifiPassword);
+  DEBUG_print("  wifiTimeout: "); DEBUG_println(config.wifiTimeout);
   DEBUG_print("  portalSSID: "); DEBUG_println(config.portalSSID);
   DEBUG_print("  portalPassword: "); DEBUG_println(config.portalPassword);
   DEBUG_print("  portalTimeout: "); DEBUG_println(config.portalTimeout);
@@ -121,6 +124,7 @@ void saveConfig() {
   // prepare JSON document
   doc["wifiSSID"]       = config.wifiSSID;
   doc["wifiPassword"]   = config.wifiPassword;
+  doc["wifiTimeout"]    = config.wifiTimeout;
   doc["portalSSID"]     = config.portalSSID;
   doc["portalPassword"] = config.portalPassword;
   doc["portalTimeout"]  = config.portalTimeout;
@@ -176,11 +180,11 @@ void setup()
   readConfig();
 
   // start wifi
-  isCaptive = captivePortalSetup(); // TODO try to reconnect after config.interval seconds
+  isCaptive = captivePortalSetup();
 
   // configure web server
   DEBUG_println("starting web server...");
-  webServerInit(webServer, isCaptive); // TODO reset web server if wifi is reconnected
+  webServerInit(webServer, isCaptive);
   webServer.on("/cmd", HTTP_GET, handleCmd);
   webServer.on("/status", HTTP_GET, [](AsyncWebServerRequest *request) {
       request->send(200, "application/json", statusJsonBuffer); 
@@ -222,27 +226,35 @@ void loop()
 {
   time_t now;
   time(&now);
+  uint32_t uptime = millis()/1000; // get current timestamp in seconds
 
   // handle network tasks
   captivePortalLoop();
   mqttLoop();
   webUtilsLoop();
 
-  // scan for BLE devices & read data
-  if ( (now - lastScan) > config.interval) { // scan and read data every x sceconds
-    
-    // WiFi reconnect if needed
-/*
-    if ( WiFi.status() != WL_CONNECTED ) {
-      DEBUG_print("try to reconnect to WiFi... ");
-      if ( mqttClient.connected() ) {
-        mqttClient.loop();
+
+  if ( !isCaptive && !WiFi.isConnected()) {
+    if ( !diconnectedAt ) {
+      diconnectedAt = uptime; // set disconnection timestamp
+      DEBUG_println("WiFi disconnected, waiting for reconnection...");
+    } else {
+      // restart if disconnected from WiFi for more than wifiTimeout seconds ... starts captive portal or reconnect to WiFi
+      if ( (uptime - diconnectedAt) > config.wifiTimeout ) {
+        DEBUG_println("restarting due to WiFi disconnection timeout");
+        WiFi.disconnect(true, true);
+        delay(50);
+        WiFi.mode(WIFI_OFF);
+        delay(500);
+        ESP.restart();
       }
-      // try to re-connect to WiFi if not connected
-      isCaptive = captivePortalSetup();
     }
-*/    
+  } else {
+    diconnectedAt = 0; // reset disconnection timestamp
+  }
     
+  // scan for BLE devices & read data
+  if ( (uptime - lastScan) > config.interval) { // scan and read data every x sceconds
     // BLE
     Serial.println("Scanning for BLE devices...");
     digitalWrite(LED_PIN, HIGH);
@@ -284,7 +296,7 @@ void loop()
           doc["bat"] = readings.bat; // Battery in mV
           doc["bleRSSI"] = readings.rssi; // BLE RSSI
 
-          lastScan = now;
+          lastScan = uptime;
         } else {
           doc["status"] = "failed to read data";
           doc["bleRSSI"] = readings.rssi; // BLE RSSI
@@ -298,7 +310,7 @@ void loop()
     }
     digitalWrite(LED_PIN, LOW);
 
-    if (lastScan != now) {
+    if (lastScan != uptime) {
       if ( doc["status"].isNull() ) {
         doc["status"] = "no matching device found"; // status message
         Serial.println("No matching device found.");
@@ -316,8 +328,8 @@ void loop()
       // doc["bat"] = 0.0;
       // doc["bleRSSI"] = 0; // no RSSI available
 
-//      lastScan = now - (config.interval/2);
-      lastScan = now - config.interval + 10; // next scan in 10 seconds
+//      lastScan = uptime - (config.interval/2);
+      lastScan = uptime - config.interval + 10; // next scan in 10 seconds
     }
 
     // WiFi and MQTT information

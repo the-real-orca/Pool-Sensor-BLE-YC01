@@ -1,7 +1,16 @@
 {
- "name": "Device Name",
- "wifiSSID": "SSID",
- "wifiPassword": "",
- "portalSSID": "ESP32-Portal",
- "portalPassword": ""
+    "interval": 900,    
+    "name": "Device Name",
+    "wifiSSID": "SSID",
+    "wifiPassword": "",
+    "wifiTimeout": 600,
+    "portalSSID": "ESP32-Portal",
+    "portalPassword": ""
+    "portalTimeout": 600,
+    "mqttServer": "mqtt.local",
+    "mqttPort": 1883,
+    "mqttTLS": false,
+    "mqttTopic": "/esp32/sensor/ble-yc01",
+    "mqttUser": "user",
+    "mqttPassword": ""
 }
