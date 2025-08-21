@@ -24,6 +24,7 @@ typedef struct {
 // WiFi configuration
   String portalSSID;
   String portalPassword;
+  uint16_t portalTimeout;
   String wifiSSID;
   String wifiPassword;
 // MQTT configurations

@@ -18,8 +18,10 @@ unsigned long lastWifiUpdate = 0;
 
 int captivePortalSetup()
 {
-    WiFi.mode(WIFI_OFF);
-    delay(100);
+    WiFi.disconnect(true, true);  // drop connection & clear credentials
+    delay(50);
+    WiFi.mode(WIFI_OFF);          // this calls esp_wifi_stop internally
+    delay(50);
 
     while (true)
     {
@@ -43,6 +45,7 @@ int captivePortalSetup()
                 {
                     DEBUG_print("WiFi successfully connected with IP: ");
                     DEBUG_println(WiFi.localIP());
+                    captivePortalLoop();
                     return 0; // exit captive portal if connected
                 }
                 else
@@ -84,6 +87,7 @@ int captivePortalSetup()
                 dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
                 dnsServer.start(53, "*", WiFi.softAPIP());
 
+                captivePortalLoop();
                 return 1; // captive portal mode active
             }
         }
@@ -97,5 +101,23 @@ void captivePortalLoop()
     if (captiveMode)
     {
         dnsServer.processNextRequest();
+
+        // check captive portal timeout
+        if (config.portalTimeout > 0 && millis() > ((uint32_t) config.portalTimeout * 1000) )
+        {
+            DEBUG_println("Captive portal timeout reached");
+            if ( WiFi.softAPgetStationNum() ) {
+                DEBUG_println("waiting for clients to disconnect...");
+                config.portalTimeout += 30; // extend timeout by 30 seconds
+            } else {
+                DEBUG_println("stopping AP and reboot...");
+                WiFi.softAPdisconnect(true);
+                WiFi.disconnect(true);
+                captiveMode = false;
+                wiFiConnecting = false;
+                delay(500);
+                ESP.restart(); // restart the ESP32
+            }
+        }
     }
 }

@@ -84,6 +84,7 @@ void readConfig()
   config.wifiPassword = doc["wifiPassword"] | "";
   config.portalSSID = doc["portalSSID"] | "ESP32-Portal";
   config.portalPassword = doc["portalPassword"] | "";
+  config.portalTimeout = doc["portalTimeout"] | 30; // TODO 600
   config.mqttServer = doc["mqttServer"] | "";
   config.mqttPort = doc["mqttPort"] | 1883;
   config.mqttTLS = doc["mqttTLS"] | false;
@@ -101,6 +102,7 @@ void readConfig()
   DEBUG_print("  wifiPassword: "); DEBUG_println(config.wifiPassword);
   DEBUG_print("  portalSSID: "); DEBUG_println(config.portalSSID);
   DEBUG_print("  portalPassword: "); DEBUG_println(config.portalPassword);
+  DEBUG_print("  portalTimeout: "); DEBUG_println(config.portalTimeout);
   DEBUG_print("  mqttServer: "); DEBUG_println(config.mqttServer);
   DEBUG_print("  mqttPort: "); DEBUG_println(config.mqttPort);
   DEBUG_print("  mqttTLS: "); DEBUG_println(config.mqttTLS);
@@ -121,6 +123,7 @@ void saveConfig() {
   doc["wifiPassword"]   = config.wifiPassword;
   doc["portalSSID"]     = config.portalSSID;
   doc["portalPassword"] = config.portalPassword;
+  doc["portalTimeout"]  = config.portalTimeout;
   doc["mqttServer"]     = config.mqttServer;
   doc["mqttPort"]       = config.mqttPort;
   doc["mqttTLS"]        = config.mqttTLS;
@@ -173,11 +176,11 @@ void setup()
   readConfig();
 
   // start wifi
-  isCaptive = captivePortalSetup();
+  isCaptive = captivePortalSetup(); // TODO try to reconnect after config.interval seconds
 
   // configure web server
   DEBUG_println("starting web server...");
-  webServerInit(webServer, isCaptive);
+  webServerInit(webServer, isCaptive); // TODO reset web server if wifi is reconnected
   webServer.on("/cmd", HTTP_GET, handleCmd);
   webServer.on("/status", HTTP_GET, [](AsyncWebServerRequest *request) {
       request->send(200, "application/json", statusJsonBuffer); 
@@ -193,7 +196,7 @@ void setup()
   if ( config.mqttServer.isEmpty() || config.mqttPort == 0 ) {
     config.mqttPort = 0;  // disable MQTT if no server is configured or in captive portal mode
   }
-  if ( config.mqttPort && !isCaptive )
+  if ( config.mqttPort && !isCaptive )  // only configure MQTT client if not in captive portal mode
   {
     // configure MQTT client
     if ( config.mqttTLS ) {
@@ -227,6 +230,19 @@ void loop()
 
   // scan for BLE devices & read data
   if ( (now - lastScan) > config.interval) { // scan and read data every x sceconds
+    
+    // WiFi reconnect if needed
+/*
+    if ( WiFi.status() != WL_CONNECTED ) {
+      DEBUG_print("try to reconnect to WiFi... ");
+      if ( mqttClient.connected() ) {
+        mqttClient.loop();
+      }
+      // try to re-connect to WiFi if not connected
+      isCaptive = captivePortalSetup();
+    }
+*/    
+    
     // BLE
     Serial.println("Scanning for BLE devices...");
     digitalWrite(LED_PIN, HIGH);

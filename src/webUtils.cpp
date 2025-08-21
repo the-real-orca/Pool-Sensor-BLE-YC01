@@ -113,41 +113,53 @@ String templateProcessorUpdate(const String &var)
     else if (var == "BUILDDATE")
     {
         return String(__DATE__ + String(" ") + __TIME__);
-    }    
+    }
     return String();
 }
 
-void handleUpdate(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
-    if (!index) {
+void handleUpdate(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final)
+{
+    if (!index)
+    {
         DEBUG_print("start firmware uploade");
-        if ( !Update.begin(UPDATE_SIZE_UNKNOWN) ) { 
-            //start with max available size
-            Update.printError(Serial);
-        }        
-    }
-    DEBUG_print(".");
-    if ( Update.write(data, len) != len ) {
-        Update.printError(Serial);
-    }
-    if (final) {
-        DEBUG_println("\nupload finished");
-        if ( Update.end(true) ) {
-            Serial.println("OTA update successfull, restarting ...");
-            restartTick.once(2, []() { ESP.restart(); });            
-        } else {
+        if (!Update.begin(UPDATE_SIZE_UNKNOWN))
+        {
+            // start with max available size
             Update.printError(Serial);
         }
-
+    }
+    DEBUG_print(".");
+    if (Update.write(data, len) != len)
+    {
+        Update.printError(Serial);
+    }
+    if (final)
+    {
+        DEBUG_println("\nupload finished");
+        if (Update.end(true))
+        {
+            Serial.println("OTA update successfull, restarting ...");
+            restartTick.once(2, [](){ ESP.restart(); });
+        }
+        else
+        {
+            Update.printError(Serial);
+        }
     }
 }
 
-void handleFileUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
-    if (!filename.startsWith("/")) {
+void handleFileUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final)
+{
+    if (!filename.startsWith("/"))
+    {
         filename = "/" + filename;
     }
-    if (!index) {
-        DEBUG_print("start upload file: "); DEBUG_println(filename.c_str());
-        if (SPIFFS.exists(filename)) {
+    if (!index)
+    {
+        DEBUG_print("start upload file: ");
+        DEBUG_println(filename.c_str());
+        if (SPIFFS.exists(filename))
+        {
             SPIFFS.remove(filename);
         }
         File file = SPIFFS.open(filename, FILE_WRITE);
@@ -155,14 +167,18 @@ void handleFileUpload(AsyncWebServerRequest *request, String filename, size_t in
     }
 
     File file = SPIFFS.open(filename, FILE_APPEND);
-    if (file) {
+    if (file)
+    {
         file.write(data, len);
         file.close();
     }
 
-    if (final) {
-        DEBUG_print("upload finished: "); DEBUG_print(filename.c_str());
-        DEBUG_print(" "); DEBUG_println(formatBytes(index + len));
+    if (final)
+    {
+        DEBUG_print("upload finished: ");
+        DEBUG_print(filename.c_str());
+        DEBUG_print(" ");
+        DEBUG_println(formatBytes(index + len));
     }
 }
 
@@ -170,41 +186,50 @@ void handleFileDelete(AsyncWebServerRequest *request)
 {
     // check if the request has a file parameter
     const AsyncWebParameter *p = request->getParam("file");
-    if (!p) {
+    if (!p)
+    {
         request->send(400, "text/plain", "Bad Request: No file specified");
         return;
     }
     // get the file name from the parameter
     String filename = p->value();
     // check if the file name is empty
-    if (filename.isEmpty()) {
+    if (filename.isEmpty())
+    {
         request->send(400, "text/plain", "Bad Request: No file specified");
         return;
     }
     // check if the file name starts with a slash
-    if (!filename.startsWith("/")) {
+    if (!filename.startsWith("/"))
+    {
         filename = "/" + filename; // prepend slash if missing
     }
     // check if the file name contains ".." to prevent directory traversal
-    if (filename.indexOf("..") >= 0) {
+    if (filename.indexOf("..") >= 0)
+    {
         // security alert -> trying to exit web root
         request->send(500, "text/plain", "BAD ARGS");
         return;
     }
     // check if the file exists in SPIFFS
-    if (!SPIFFS.exists(filename)) {
+    if (!SPIFFS.exists(filename))
+    {
         request->send(404, "text/plain", filename + " not found");
         return;
     }
     // remove the file from SPIFFS
-    if (SPIFFS.remove(filename)) {
+    if (SPIFFS.remove(filename))
+    {
         request->send(200, "text/html", RELOADPREV_HTML);
-    } else {
+    }
+    else
+    {
         request->send(500, "text/plain", "Failed to delete " + filename);
     }
 }
 
-struct WifiEntry {
+struct WifiEntry
+{
     String ssid;
     int32_t rssi;
     uint8_t encryptionType;
@@ -213,34 +238,39 @@ struct WifiEntry {
 
 bool scanWifi = false;
 String wifiListJson = "[]";
-void scanWifiNetworks() {
+void scanWifiNetworks()
+{
     std::map<String, WifiEntry> bestBySSID;
-  
+
     int n = WiFi.scanNetworks();
-    for (int i = 0; i < n; ++i) {
-      String ssid = WiFi.SSID(i);
-      int32_t rssi = WiFi.RSSI(i);
-      uint8_t enc = WiFi.encryptionType(i);
-      uint8_t chan = WiFi.channel(i);
-  
-      if (ssid.length() == 0) continue;  // ignore empty SSIDs
-  
-      if (bestBySSID.find(ssid) == bestBySSID.end() || rssi > bestBySSID[ssid].rssi) {
-        bestBySSID[ssid] = {ssid, rssi, enc, chan};
-      }
+    for (int i = 0; i < n; ++i)
+    {
+        String ssid = WiFi.SSID(i);
+        int32_t rssi = WiFi.RSSI(i);
+        uint8_t enc = WiFi.encryptionType(i);
+        uint8_t chan = WiFi.channel(i);
+
+        if (ssid.length() == 0)
+            continue; // ignore empty SSIDs
+
+        if (bestBySSID.find(ssid) == bestBySSID.end() || rssi > bestBySSID[ssid].rssi)
+        {
+            bestBySSID[ssid] = {ssid, rssi, enc, chan};
+        }
     }
-  
+
     wifiListJson = "";
-    for (auto const& pair : bestBySSID) {
-      if ( wifiListJson.isEmpty() )
-        wifiListJson = "[";
+    for (auto const &pair : bestBySSID)
+    {
+        if (wifiListJson.isEmpty())
+            wifiListJson = "[";
         else
-        wifiListJson += ",";
-      wifiListJson += "{";
-      wifiListJson += "\"ssid\":\"" + pair.second.ssid + "\"";
-      wifiListJson += ",\"enc\": " + String(pair.second.encryptionType);
-      wifiListJson += ",\"rssi\": " + String(pair.second.rssi);
-      wifiListJson += "}";
+            wifiListJson += ",";
+        wifiListJson += "{";
+        wifiListJson += "\"ssid\":\"" + pair.second.ssid + "\"";
+        wifiListJson += ",\"enc\": " + String(pair.second.encryptionType);
+        wifiListJson += ",\"rssi\": " + String(pair.second.rssi);
+        wifiListJson += "}";
     }
     wifiListJson += "]";
     DEBUG_println("WiFi Scan completed.");
@@ -251,7 +281,8 @@ void webServerInit(AsyncWebServer &webServer, bool isCaptive)
 
     webServer.serveStatic("/", SPIFFS, "/").setDefaultFile("index.html");
 
-    webServer.onNotFound([isCaptive](AsyncWebServerRequest *request) {
+    webServer.onNotFound([isCaptive](AsyncWebServerRequest *request)
+        {
         DEBUG_print("not found: "); DEBUG_println(request->url());
         if (!SPIFFS.exists("/index.html")) {
             // if no filesystem, send no filesystem html
@@ -264,57 +295,54 @@ void webServerInit(AsyncWebServer &webServer, bool isCaptive)
             } else {
                 request->send(404, "text/plain", "Not found");
             }
-        }
+        } 
     });
 
-    webServer.on("/update", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(200, "text/html", UPDATE_HTML, templateProcessorUpdate); 
-    });
-    webServer.on("/execupdate", HTTP_POST, [](AsyncWebServerRequest *request) {
-        request->send(200, "text/plain", "update finished");
-    }, handleUpdate);
+    webServer.on("/update", HTTP_GET, [](AsyncWebServerRequest *request)
+        { request->send(200, "text/html", UPDATE_HTML, templateProcessorUpdate); });
+    webServer.on("/execupdate", HTTP_POST, [](AsyncWebServerRequest *request)
+        { request->send(200, "text/plain", "update finished"); }, handleUpdate);
 
-    webServer.on("/fileupload", HTTP_POST, [](AsyncWebServerRequest *request) {
-        request->send(200, "text/plain", "upload finished"); 
-    }, handleFileUpload);
+    webServer.on("/fileupload", HTTP_POST, [](AsyncWebServerRequest *request)
+        { request->send(200, "text/plain", "upload finished"); }, handleFileUpload);
     webServer.on("/del", HTTP_GET, handleFileDelete);
 
-    webServer.on("/config", HTTP_GET, [](AsyncWebServerRequest *request){
-        request->send(SPIFFS, "/config.html", "text/html");
-        DEBUG_println("config -> config.html");
-        scanWifi = true; // trigger wifi scan on config load
-      });
+    webServer.on("/config", HTTP_GET, [](AsyncWebServerRequest *request)
+        {
+            request->send(SPIFFS, "/config.html", "text/html");
+            DEBUG_println("config -> config.html");
+            scanWifi = true; // trigger wifi scan on config load
+        });
 
-    webServer.on("/config.json", HTTP_PUT, [](AsyncWebServerRequest *request) {
-        request->send(200,"text/plain", "ok");
-    }, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-        if ( index != 0 || len < 2 )
-            return request->send(500, "text/plain", "BAD CONFIG");
+    webServer.on("/config.json", HTTP_PUT, [](AsyncWebServerRequest *request)
+        { request->send(200, "text/plain", "ok"); }, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+            {
+                if ( index != 0 || len < 2 )
+                    return request->send(500, "text/plain", "BAD CONFIG");
 
-        File file = SPIFFS.open("/config.json", "w");
-        file.write(data, len);
-        file.close();
-        DEBUG_println("config.json saved, reboot device in 2 second");
-        restartTick.once(2, []() { ESP.restart(); });
-    });
-    webServer.on("/wifiList", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(200, "application/json", wifiListJson); 
-        scanWifi = true; // trigger wifi scan on config load
-    });
-    
-
+                File file = SPIFFS.open("/config.json", "w");
+                file.write(data, len);
+                file.close();
+                DEBUG_println("config.json saved, reboot device in 2 second");
+                restartTick.once(2, []() { ESP.restart(); }); 
+            });
+    webServer.on("/wifiList", HTTP_GET, [](AsyncWebServerRequest *request)
+        {
+            request->send(200, "application/json", wifiListJson);
+            scanWifi = true; // trigger wifi scan on config load
+        });
 
     // enable CORS for all origins
     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "GET, POST, PUT");
     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Accept, Content-Type, Authorization");
     DefaultHeaders::Instance().addHeader("Access-Control-Allow-Credentials", "true");
-    
 }
 
-void webUtilsLoop() 
+void webUtilsLoop()
 {
-    if (scanWifi ) {
+    if (scanWifi)
+    {
         scanWifi = false;
         scanWifiNetworks();
     }
