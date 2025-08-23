@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include "esp_task_wdt.h"
 
 #include <WiFi.h>
 #include <AsyncTCP.h>
@@ -219,6 +220,12 @@ void setup()
 
   // configure status LED
   pinMode(LED_PIN, OUTPUT);
+
+
+  // start watchdog
+  esp_task_wdt_init(20, true); // 20 seconds
+  esp_task_wdt_add(NULL);
+
 }
 
 
@@ -227,6 +234,10 @@ void loop()
   time_t now;
   time(&now);
   uint32_t uptime = millis()/1000; // get current timestamp in seconds
+
+  // reset watchdog
+  esp_task_wdt_reset();
+
 
   // handle network tasks
   captivePortalLoop();
