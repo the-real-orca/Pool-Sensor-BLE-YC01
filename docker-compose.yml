@@ -1,0 +1,19 @@
+services:
+  lx790-gemini:
+    build: .
+    container_name: yc01-gemini
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+      - ./.gemini:/root/.gemini
+    environment:
+      - FORCE_COLOR=1
+      - TERM=xterm-256color
+      - COLORTERM=truecolor
+      - LANG=C.UTF-8
+      - LC_ALL=C.UTF-8
+    entrypoint: ["bash"]
+

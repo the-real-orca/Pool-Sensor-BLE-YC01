@@ -5,7 +5,7 @@
     "wifiPassword": "",
     "wifiTimeout": 600,
     "portalSSID": "ESP32-Portal",
-    "portalPassword": ""
+    "portalPassword": "",
     "portalTimeout": 600,
     "mqttServer": "mqtt.local",
     "mqttPort": 1883,
