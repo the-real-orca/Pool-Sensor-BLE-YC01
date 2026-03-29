@@ -39,6 +39,11 @@ WiFiClient wifiClient;
 WiFiClientSecure secureClient;
 PubSubClient mqttClient;
 
+/**
+ * @brief Handles the MQTT client loop.
+ * 
+ * Only active if MQTT is configured and not in captive portal mode.
+ */
 void mqttLoop() {
   if ( config.mqttPort && !isCaptive) {
     if ( mqttClient.connected() ) {
@@ -47,6 +52,10 @@ void mqttLoop() {
   }    
 }
 
+/**
+ * @brief HTTP GET handler for commands via /cmd endpoint.
+ * @param request Pointer to AsyncWebServerRequest
+ */
 void handleCmd(AsyncWebServerRequest *request)
 {
   request->getParam("cmd", true, false); // get the cmd parameter, but do not use it
@@ -74,6 +83,9 @@ void handleCmd(AsyncWebServerRequest *request)
   request->send(200, "text/plain", "");
 }
 
+/**
+ * @brief Reads the configuration from SPIFFS (config.json).
+ */
 void readConfig()
 {
   File file = SPIFFS.open("/config.json", "r");
@@ -119,6 +131,9 @@ void readConfig()
   DEBUG_println("");
 }
 
+/**
+ * @brief Saves the current configuration to SPIFFS (config.json).
+ */
 void saveConfig() {
   JsonDocument doc;
 
@@ -152,6 +167,12 @@ void saveConfig() {
 }
 
 
+/**
+ * @brief Standard Arduino setup function.
+ * 
+ * Initializes serial, filesystem, configuration, WiFi/Captive Portal, 
+ * Web Server, MQTT, and Watchdog.
+ */
 void setup()
 {
   Serial.begin(115200);
@@ -229,6 +250,11 @@ void setup()
 }
 
 
+/**
+ * @brief Standard Arduino loop function.
+ * 
+ * Handles network tasks, BLE scanning/reading, and MQTT data publishing.
+ */
 void loop()
 {
   time_t now;

@@ -25,7 +25,6 @@ const char *RELOADPREV_HTML =
 
 static Ticker restartTick;
 
-// format bytes
 String formatBytes(size_t bytes)
 {
     if (bytes < 1024)
@@ -78,7 +77,12 @@ String getContentType(String filename)
     return "text/plain";
 }
 
-String templateProcessorUpdate(const String &var)
+/**
+ * @brief Template processor for the update page.
+ * @param var Template variable name
+ * @return String processed variable value
+ */
+static String templateProcessorUpdate(const String &var)
 {
     if (var == "FILES")
     {
@@ -117,7 +121,16 @@ String templateProcessorUpdate(const String &var)
     return String();
 }
 
-void handleUpdate(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final)
+/**
+ * @brief Handles firmware/filesystem updates via HTTP POST.
+ * @param request Pointer to AsyncWebServerRequest
+ * @param filename Name of the uploaded file
+ * @param index Current byte offset of the upload
+ * @param data Data pointer
+ * @param len Length of the data chunk
+ * @param final true if this is the last chunk
+ */
+static void handleUpdate(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final)
 {
     if (!index)
     {
@@ -148,7 +161,16 @@ void handleUpdate(AsyncWebServerRequest *request, String filename, size_t index,
     }
 }
 
-void handleFileUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final)
+/**
+ * @brief Handles generic file uploads to SPIFFS.
+ * @param request Pointer to AsyncWebServerRequest
+ * @param filename Name of the uploaded file
+ * @param index Current byte offset of the upload
+ * @param data Data pointer
+ * @param len Length of the data chunk
+ * @param final true if this is the last chunk
+ */
+static void handleFileUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final)
 {
     if (!filename.startsWith("/"))
     {
@@ -182,7 +204,11 @@ void handleFileUpload(AsyncWebServerRequest *request, String filename, size_t in
     }
 }
 
-void handleFileDelete(AsyncWebServerRequest *request)
+/**
+ * @brief Handles file deletion from SPIFFS.
+ * @param request Pointer to AsyncWebServerRequest
+ */
+static void handleFileDelete(AsyncWebServerRequest *request)
 {
     // check if the request has a file parameter
     const AsyncWebParameter *p = request->getParam("file");
@@ -228,6 +254,9 @@ void handleFileDelete(AsyncWebServerRequest *request)
     }
 }
 
+/**
+ * @brief Internal structure for temporary WiFi scanning results.
+ */
 struct WifiEntry
 {
     String ssid;

@@ -26,11 +26,24 @@ bool compareBLEAddress(const NimBLEAddress& address, const String& targetAddress
     return compareBLEAddress(address, targetAddress.c_str());
 }
 
+/**
+ * @brief Helper function to convert 2 bytes to int16 (big endian)
+ * @param data Data array
+ * @param idx Starting index
+ * @return 16-bit integer
+ */
 static int16_t toInt16(uint8_t const data[], int idx) {
     return ((uint16_t)data[idx] << 8) | (uint16_t)data[idx + 1];
 }
 
 static uint8_t decodedData[60]; // Buffer for decoded data
+
+/**
+ * @brief Decodes the proprietary BLE data from the sensor
+ * @param data Pointer to raw data
+ * @param length Length of data
+ * @return Pointer to decoded data or NULL on error
+ */
 static uint8_t* decodeData(uint8_t const data[], int length) {
     if (length < 2 || length > 60) {
         return NULL; // Invalid data length
@@ -53,6 +66,12 @@ static uint8_t* decodeData(uint8_t const data[], int length) {
     return decodedData;
 }
 
+/**
+ * @brief Simple XOR checksum calculation
+ * @param data Data pointer
+ * @param length Data length
+ * @return Checksum result
+ */
 static uint8_t checksum(const uint8_t* data, int length)		
 {		
     uint8_t i = 0;	
