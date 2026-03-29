@@ -7,7 +7,7 @@ The system consists of an ESP32 microcontroller communicating with a BLE-YC01 se
 - **BLE-YC01 Handler:** Manages scanning and reading from the sensor.
 - **Web Interface:** Asynchronous web server for status and configuration.
 - **Network Manager:** Handles WiFi (Station and AP) and MQTT connections.
-- **Configuration Manager:** JSON-based persistent storage on SPIFFS.
+- **Configuration Manager:** JSON-based persistent storage on LittleFS.
 
 ## 2. Definitions
 
@@ -17,7 +17,7 @@ The system consists of an ESP32 microcontroller communicating with a BLE-YC01 se
 | **BLE** | Bluetooth Low Energy |
 | **MQTT** | Message Queuing Telemetry Transport |
 | **NTP** | Network Time Protocol |
-| **SPIFFS** | Serial Peripheral Interface Flash File System |
+| **LittleFS** | Little File System for microcontrollers |
 | **TSD** | Technical Specification Document |
 | **UUID** | Universally Unique Identifier |
 
@@ -67,7 +67,7 @@ typedef struct {
 - **HTTP:** REST-like API for commands (`/cmd`), status (`/status`), and configuration (`/config.json`).
 
 ### 2.4 Persistent Storage
-- **Filesystem:** SPIFFS (Serial Peripheral Interface Flash File System).
+- **Filesystem:** LittleFS (Serial Peripheral Interface Flash File System).
 - **Configuration File:** `/config.json` (JSON format).
 
 ### 2.5 Reliability

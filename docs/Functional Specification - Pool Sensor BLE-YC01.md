@@ -29,7 +29,7 @@ graph TD
         WiFi[WiFi / Captive Portal]
         Web[Async Web Server]
         MQTT[MQTT Client]
-        FS[(SPIFFS / config.json)]
+        FS[(LittleFS / config.json)]
     end
 
     Sensor((BLE-YC01 Sensor))
@@ -54,7 +54,7 @@ The system follows a modular architecture:
 - **Core Logic:** `main.cpp` coordinates tasks and timers.
 - **Sensor Handler:** `BLE-YC01.cpp/h` manages all BLE interactions.
 - **Network Handler:** `captivePortal.cpp/h` and `webUtils.cpp/h` manage WiFi and HTTP services.
-- **Storage:** SPIFFS holds the JSON configuration and web assets.
+- **Storage:** LittleFS holds the JSON configuration and web assets.
 
 ### 2.3 Hardware Description
 - **Computing Hardware:** ESP32 Microcontroller (e.g., DevKit-V1).
@@ -117,7 +117,7 @@ The system must send data to a central broker for external integration.
 - **Data Formats:** 
     - BLE-YC01 sensor data: proprietary 17-byte format
     - JSON for configuration and status API.
-- **Persistence:** Settings stored in protected `/config.json` on SPIFFS.
+- **Persistence:** Settings stored in protected `/config.json` on LittleFS.
 
 ## 7. User Interface
 
@@ -169,7 +169,7 @@ A dedicated page for uploading `.bin` files for firmware or filesystem updates.
 ## 11. Open Points / Assumptions
 
 ### 11.1 Open Questions
-- Should we implement a "History" view in the web UI using small SPIFFS logs?
+- Should we implement a "History" view in the web UI using small LittleFS logs?
 - Is there a need for multiple sensor support in a single ESP32?
 
 ### 11.2 Assumptions

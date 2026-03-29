@@ -11,7 +11,7 @@ The **Pool Sensor BLE-YC01** project is an ESP32-based IoT application designed 
   - **MQTT:** Publishes sensor data to a broker with optional TLS encryption.
   - **Web Server:** Real-time status dashboard, configuration management, and file system access.
 - **OTA Updates:** Support for firmware and file system updates over the air.
-- **Configuration:** Persistent storage of settings in a JSON file on SPIFFS.
+- **Configuration:** Persistent storage of settings in a JSON file on LittleFS.
 - **Robustness:** Built-in hardware watchdog to ensure long-term stability.
 
 ## Target Hardware

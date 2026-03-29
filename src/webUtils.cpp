@@ -3,7 +3,7 @@
 #include <map>
 
 #include <ESPAsyncWebServer.h>
-#include <SPIFFS.h>
+#include <LittleFS.h>
 #include <Update.h>
 #include <Ticker.h>
 
@@ -87,7 +87,7 @@ static String templateProcessorUpdate(const String &var)
     if (var == "FILES")
     {
         String str = "<ul>";
-        File root = SPIFFS.open("/");
+        File root = LittleFS.open("/");
         File file = root.openNextFile();
         while (file)
         {
@@ -100,18 +100,18 @@ static String templateProcessorUpdate(const String &var)
     }
     else if (var == "TOTAL")
     {
-        size_t total = SPIFFS.totalBytes();
+        size_t total = LittleFS.totalBytes();
         return String(formatBytes(total));
     }
     else if (var == "USED")
     {
-        size_t used = SPIFFS.usedBytes();
+        size_t used = LittleFS.usedBytes();
         return String(formatBytes(used));
     }
     else if (var == "FREE")
     {
-        size_t total = SPIFFS.totalBytes();
-        size_t used = SPIFFS.usedBytes();
+        size_t total = LittleFS.totalBytes();
+        size_t used = LittleFS.usedBytes();
         return String(formatBytes(total - used));
     }
     else if (var == "BUILDDATE")
@@ -162,7 +162,7 @@ static void handleUpdate(AsyncWebServerRequest *request, String filename, size_t
 }
 
 /**
- * @brief Handles generic file uploads to SPIFFS.
+ * @brief Handles generic file uploads to LittleFS.
  * @param request Pointer to AsyncWebServerRequest
  * @param filename Name of the uploaded file
  * @param index Current byte offset of the upload
@@ -180,15 +180,15 @@ static void handleFileUpload(AsyncWebServerRequest *request, String filename, si
     {
         DEBUG_print("start upload file: ");
         DEBUG_println(filename.c_str());
-        if (SPIFFS.exists(filename))
+        if (LittleFS.exists(filename))
         {
-            SPIFFS.remove(filename);
+            LittleFS.remove(filename);
         }
-        File file = SPIFFS.open(filename, FILE_WRITE);
+        File file = LittleFS.open(filename, FILE_WRITE);
         file.close(); // Datei wird später geöffnet
     }
 
-    File file = SPIFFS.open(filename, FILE_APPEND);
+    File file = LittleFS.open(filename, FILE_APPEND);
     if (file)
     {
         file.write(data, len);
@@ -205,7 +205,7 @@ static void handleFileUpload(AsyncWebServerRequest *request, String filename, si
 }
 
 /**
- * @brief Handles file deletion from SPIFFS.
+ * @brief Handles file deletion from LittleFS.
  * @param request Pointer to AsyncWebServerRequest
  */
 static void handleFileDelete(AsyncWebServerRequest *request)
@@ -237,14 +237,14 @@ static void handleFileDelete(AsyncWebServerRequest *request)
         request->send(500, "text/plain", "BAD ARGS");
         return;
     }
-    // check if the file exists in SPIFFS
-    if (!SPIFFS.exists(filename))
+    // check if the file exists in LittleFS
+    if (!LittleFS.exists(filename))
     {
         request->send(404, "text/plain", filename + " not found");
         return;
     }
-    // remove the file from SPIFFS
-    if (SPIFFS.remove(filename))
+    // remove the file from LittleFS
+    if (LittleFS.remove(filename))
     {
         request->send(200, "text/html", RELOADPREV_HTML);
     }
@@ -308,12 +308,12 @@ void scanWifiNetworks()
 void webServerInit(AsyncWebServer &webServer, bool isCaptive)
 {
 
-    webServer.serveStatic("/", SPIFFS, "/").setDefaultFile("index.html");
+    webServer.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
 
     webServer.onNotFound([isCaptive](AsyncWebServerRequest *request)
         {
         DEBUG_print("not found: "); DEBUG_println(request->url());
-        if (!SPIFFS.exists("/index.html")) {
+        if (!LittleFS.exists("/index.html")) {
             // if no filesystem, send no filesystem html
             DEBUG_println("no filesystem, sending no filesystem html");
             request->send(200, "text/html", NOFILESYSTEM_HTML);
@@ -338,7 +338,7 @@ void webServerInit(AsyncWebServer &webServer, bool isCaptive)
 
     webServer.on("/config", HTTP_GET, [](AsyncWebServerRequest *request)
         {
-            request->send(SPIFFS, "/config.html", "text/html");
+            request->send(LittleFS, "/config.html", "text/html");
             DEBUG_println("config -> config.html");
             scanWifi = true; // trigger wifi scan on config load
         });
@@ -349,7 +349,7 @@ void webServerInit(AsyncWebServer &webServer, bool isCaptive)
                 if ( index != 0 || len < 2 )
                     return request->send(500, "text/plain", "BAD CONFIG");
 
-                File file = SPIFFS.open("/config.json", "w");
+                File file = LittleFS.open("/config.json", "w");
                 file.write(data, len);
                 file.close();
                 DEBUG_println("config.json saved, reboot device in 2 second");

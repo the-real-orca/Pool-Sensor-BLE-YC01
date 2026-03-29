@@ -6,7 +6,7 @@
 #include <ESPAsyncWebServer.h>
 
 #include <ArduinoJson.h>
-#include <SPIFFS.h>
+#include <LittleFS.h>
 #include <Ticker.h>
 
 #include "captivePortal.h"
@@ -84,11 +84,11 @@ void handleCmd(AsyncWebServerRequest *request)
 }
 
 /**
- * @brief Reads the configuration from SPIFFS (config.json).
+ * @brief Reads the configuration from LittleFS (config.json).
  */
 void readConfig()
 {
-  File file = SPIFFS.open("/config.json", "r");
+  File file = LittleFS.open("/config.json", "r");
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, file);
   if (error)
@@ -132,7 +132,7 @@ void readConfig()
 }
 
 /**
- * @brief Saves the current configuration to SPIFFS (config.json).
+ * @brief Saves the current configuration to LittleFS (config.json).
  */
 void saveConfig() {
   JsonDocument doc;
@@ -155,7 +155,7 @@ void saveConfig() {
   doc["addr"]           = config.address;
 
   // write config file
-  File file = SPIFFS.open("/config.json", "w");
+  File file = LittleFS.open("/config.json", "w");
   if (!file) {
     Serial.println(F("Failed to open config file for writing"));
     return;
@@ -187,12 +187,12 @@ void setup()
   strcpy(statusJsonBuffer, "{}"); // reset json buffer
 
   // init filesystem
-  if (!SPIFFS.begin(true))
-    Serial.println(F("init SPIFFS error"));
+  if (!LittleFS.begin(true))
+    Serial.println(F("init LittleFS error"));
 
   delay (500); // wait for filesystem to be ready
 
-  if (!SPIFFS.exists("/index.html"))
+  if (!LittleFS.exists("/index.html"))
   {
     Serial.println(F("ERROR: Failed to read filesystem"));
     Serial.println(F("!-!-!-! build & upload filesystem image !-!-!-!"));
