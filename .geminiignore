@@ -1,0 +1,16 @@
+# Gemini CLI Ignore Patterns
+# Standard directories
+.git/
+.pio/
+node_modules/
+.vscode/
+.gemini/
+
+# Project-specific large assets
+pic/
+CAD/
+
+# Temporary and build artifacts
+*.bak
+/src/data/config.json
+Thumbs.db
