@@ -4,7 +4,11 @@ This document consolidates the project's tasks and roadmap, providing a prioriti
 
 ## Phase 1: Documentation, Stability & Core Refinements (High Priority)
 - [x] **Function Documentation:** Complete headers and descriptions for all functions to improve maintainability.
+        -> documentation generated, see /docs
 - [x] **Flash Size Optimization:** Address the high flash usage (currently >99%) by adjusting build flags and analyzing source code and FS content.
+        -> flash usage 65% (disable BLE Peripheral and Broadcast functions, switch from SPIFFS towith LittleFS)
+- [x] **Test Framework:** setup initial test framework with Universal Workbench and pytest
+        -> pytest environment configured and startup_test.py functional
 - [ ] **WiFi Stability:** Review the `while(true)` loop in `captivePortalSetup()` to ensure it cannot hang indefinitely.
 - [ ] **Reboot Logic:** Verify the reboot timer and watchdog interaction.
 - [ ] **General Code Cleanliness:** Clean up `main.cpp` and other source files (remove duplicate lines, commented-out code).

@@ -10,6 +10,7 @@ Upon initialization, perform a project status analysis and provide a structured 
 - **Project Status:** Current implementation stauts and implementation overview.
 - **Previous Session:** Summary of last changes (based on `log/` files).
 - **Next Steps:** Summary of next steps (prioritized list of open tasks, based on roadmap, todos and log files).
+- **Do NOT** start with any implementation or change right now
 
 ## 3. Technical Standards
 - **Code Comments:** Must be in **English**.
@@ -29,5 +30,6 @@ Upon initialization, perform a project status analysis and provide a structured 
 - **Log Creation:** Create one file per chat session in `log/session_<YYYY-MM-DD>_<HH-mm>.md` (Local Time, not UTC).
 - **Time Verification:** ALWAYS verify the current system time (e.g., using `date` command) before naming the log file to ensure accuracy.
 - **Log Content:**
+    - What was the main focus of the session.
     - Structured summary of all actions performed.
-    - Change Table: [File Name | Action (New/Mod/Del) | Brief Changelog].
+    - Change Table: [File Name | Action (New/Mod/Del) | Brief Changelog | GIT Status].

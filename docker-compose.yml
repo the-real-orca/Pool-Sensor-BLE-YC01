@@ -15,5 +15,6 @@ services:
       - COLORTERM=truecolor
       - LANG=C.UTF-8
       - LC_ALL=C.UTF-8
+      - WORKBENCH_URL=http://esp32-workbench.home:8080/
     entrypoint: ["bash"]
 

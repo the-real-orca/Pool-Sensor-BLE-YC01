@@ -117,14 +117,14 @@ void readConfig()
   DEBUG_print("  wifiPassword: "); DEBUG_println(config.wifiPassword);
   DEBUG_print("  wifiTimeout: "); DEBUG_println(config.wifiTimeout);
   DEBUG_print("  portalSSID: "); DEBUG_println(config.portalSSID);
-  DEBUG_print("  portalPassword: "); DEBUG_println(config.portalPassword);
+  // DEBUG_print("  portalPassword: "); DEBUG_println(config.portalPassword);
   DEBUG_print("  portalTimeout: "); DEBUG_println(config.portalTimeout);
   DEBUG_print("  mqttServer: "); DEBUG_println(config.mqttServer);
   DEBUG_print("  mqttPort: "); DEBUG_println(config.mqttPort);
   DEBUG_print("  mqttTLS: "); DEBUG_println(config.mqttTLS);
   DEBUG_print("  mqttTopic: "); DEBUG_println(config.mqttTopic);
   DEBUG_print("  mqttUser: "); DEBUG_println(config.mqttUser);
-  DEBUG_print("  mqttPassword: "); DEBUG_println(config.mqttPassword);
+  // DEBUG_print("  mqttPassword: "); DEBUG_println(config.mqttPassword);
   DEBUG_print("  interval: "); DEBUG_println(config.interval);
   DEBUG_print("  name: "); DEBUG_println(config.name);
   DEBUG_print("  address: "); DEBUG_println(config.address);
@@ -178,7 +178,7 @@ void setup()
   Serial.begin(115200);
   while (!Serial)
     ;
-  Serial.println("\n\napplication started");
+  Serial.println("\n\napplication starting ...");
   Serial.print("Build date: ");
   Serial.print(__DATE__);
   Serial.print(" time: ");
@@ -246,6 +246,8 @@ void setup()
   // start watchdog
   esp_task_wdt_init(20, true); // 20 seconds
   esp_task_wdt_add(NULL);
+
+  Serial.println("\ninit complete\n");
 
 }
 
