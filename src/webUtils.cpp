@@ -23,8 +23,6 @@ const char *RELOADPREV_HTML =
 #include "reloadprev.html.h"
     ;
 
-static Ticker restartTick;
-
 String formatBytes(size_t bytes)
 {
     if (bytes < 1024)
@@ -151,8 +149,7 @@ static void handleUpdate(AsyncWebServerRequest *request, String filename, size_t
         DEBUG_println("\nupload finished");
         if (Update.end(true))
         {
-            Serial.println("OTA update successfull, restarting ...");
-            restartTick.once(2, [](){ ESP.restart(); });
+            requestReboot("OTA update successful");
         }
         else
         {
@@ -352,8 +349,7 @@ void webServerInit(AsyncWebServer &webServer, bool isCaptive)
                 File file = LittleFS.open("/config.json", "w");
                 file.write(data, len);
                 file.close();
-                DEBUG_println("config.json saved, reboot device in 2 second");
-                restartTick.once(2, []() { ESP.restart(); }); 
+                requestReboot("Config saved");
             });
     webServer.on("/wifiList", HTTP_GET, [](AsyncWebServerRequest *request)
         {

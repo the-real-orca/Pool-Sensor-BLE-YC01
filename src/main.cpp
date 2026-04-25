@@ -23,6 +23,29 @@ config_t config;
 static char statusJsonBuffer[BUFFER_SIZE];
 #define LED_PIN 2
 static uint32_t lastScan = 0;
+String resetReason;
+
+/**
+ * @brief Returns a human-readable string for the reset reason.
+ * @param reason esp_reset_reason_t
+ * @return String
+ */
+String getResetReasonName(esp_reset_reason_t reason) {
+  switch (reason) {
+    case ESP_RST_UNKNOWN:   return "Unknown";
+    case ESP_RST_POWERON:   return "Power-on";
+    case ESP_RST_EXT:       return "External reset";
+    case ESP_RST_SW:        return "Software reset";
+    case ESP_RST_PANIC:     return "Panic/Exception";
+    case ESP_RST_INT_WDT:   return "Interrupt Watchdog";
+    case ESP_RST_TASK_WDT:  return "Task Watchdog";
+    case ESP_RST_WDT:       return "Other Watchdog";
+    case ESP_RST_DEEPSLEEP: return "Deep sleep";
+    case ESP_RST_BROWNOUT:  return "Brownout";
+    case ESP_RST_SDIO:      return "SDIO reset";
+    default:                return "Other";
+  }
+}
 
 // wifi
 static bool isCaptive = false;
@@ -38,6 +61,27 @@ Ticker restartTimer;
 WiFiClient wifiClient;
 WiFiClientSecure secureClient;
 PubSubClient mqttClient;
+
+/**
+ * @brief Centralized reboot function with delay and cleanup.
+ * @param reason String describing the reason for reboot
+ * @param delayMs Delay in milliseconds before restart
+ */
+void requestReboot(String reason, uint32_t delayMs) {
+  Serial.print("Reboot requested. Reason: ");
+  Serial.println(reason);
+  
+  // MQTT cleanup
+  if (mqttClient.connected()) {
+    DEBUG_println("Disconnecting MQTT...");
+    mqttClient.disconnect();
+  }
+  
+  // Use Ticker to delay restart
+  restartTimer.once_ms(delayMs, []() {
+    ESP.restart();
+  });
+}
 
 /**
  * @brief Handles the MQTT client loop.
@@ -71,7 +115,7 @@ void handleCmd(AsyncWebServerRequest *request)
   DEBUG_print("handleCmd: "); DEBUG_print(param); DEBUG_print(" = "); DEBUG_println(val);
 
   if (param == "reboot" && val) {
-    restartTimer.once(0.5, []() { ESP.restart(); }); 
+    requestReboot("Web Command"); 
   } else if (param == "scan" && val) {
     // re-scan
     config.address = ""; // reset address to force re-scan
@@ -201,6 +245,10 @@ void setup()
   // read config
   readConfig();
 
+  // get reset reason
+  resetReason = getResetReasonName(esp_reset_reason());
+  DEBUG_print("Reset reason: "); DEBUG_println(resetReason);
+
   // start wifi
   isCaptive = captivePortalSetup();
 
@@ -269,9 +317,7 @@ void handleSerialApi() {
     cmd.toUpperCase();
 
     if (cmd == "RESET") {
-      Serial.println("Rebooting...");
-      delay(500);
-      ESP.restart();
+      requestReboot("Serial RESET");
     } else if (cmd == "SCAN") {
       Serial.println("Forcing re-scan...");
       config.address = "";
@@ -295,9 +341,7 @@ void handleSerialApi() {
         if (file) {
           serializeJson(doc, file);
           file.close();
-          Serial.println("Config saved successfully. Rebooting...");
-          delay(500);
-          ESP.restart();
+          requestReboot("Serial SET_CONFIG");
         } else {
           Serial.println("Failed to open config file for writing.");
         }
@@ -308,7 +352,7 @@ void handleSerialApi() {
     } else if (cmd == "GET_CONFIG") {
       Serial.println("Current configuration:");
       // Serialize config to JSON and print to Serial
-      StaticJsonDocument<BUFFER_SIZE> doc; // Use same buffer size as statusJsonBuffer
+      JsonDocument doc; 
       doc["wifiSSID"]       = config.wifiSSID;
       doc["wifiPassword"]   = config.wifiPassword;
       doc["wifiTimeout"]    = config.wifiTimeout;
@@ -368,7 +412,7 @@ void loop()
         delay(50);
         WiFi.mode(WIFI_OFF);
         delay(500);
-        ESP.restart();
+        requestReboot("WiFi Timeout");
       }
     }
   } else {
@@ -380,7 +424,9 @@ void loop()
     // BLE
     Serial.println("Scanning for BLE devices...");
     digitalWrite(LED_PIN, HIGH);
+    esp_task_wdt_reset(); // reset before scan
     auto list = BLE_YC01::scan();
+    esp_task_wdt_reset(); // reset after scan
     Serial.println("Scan complete.");
 
     JsonDocument doc;
@@ -389,6 +435,7 @@ void loop()
  
 
     for (const auto& addr : list) {
+      esp_task_wdt_reset(); // reset before each device read
       Serial.print("Read device: ");
       Serial.println(addr.toString().c_str());
       
@@ -440,27 +487,15 @@ void loop()
       doc["addr"] = config.address;
       doc["sensorType"] = "unknown";
       doc["type"] = 0; // no readings available
-      // doc["pH"] = 0.0;
-      // doc["ec"] = 0.0;
-      // doc["salt"] = 0.0;
-      // doc["tds"] = 0.0;
-      // doc["orp"] = 0.0;
-      // doc["cl"] = 0.0;
-      // doc["temp"] = 0.0;
-      // doc["bat"] = 0.0;
-      // doc["bleRSSI"] = 0; // no RSSI available
-
-//      lastScan = uptime - (config.interval/2);
-      lastScan = uptime - config.interval + 10; // next scan in 10 seconds
     }
 
     // WiFi and MQTT information
     doc["wifiSSID"] = isCaptive ? config.portalSSID : config.wifiSSID; // WiFi SSID
     doc["wifiRSSI"] = WiFi.RSSI(); // WiFi RSSI
-    doc["wifiRSSI"] = WiFi.RSSI();
     doc["wifiIP"] = isCaptive ? WiFi.softAPIP().toString() : WiFi.localIP().toString(); // WiFi IP address
     doc["mqttServer"] = config.mqttServer; // MQTT server
     doc["mqttConnected"] = mqttClient.connected();
+    doc["resetReason"] = resetReason;
 
     serializeJson(doc, statusJsonBuffer);
 

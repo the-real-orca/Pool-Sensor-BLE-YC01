@@ -71,7 +71,15 @@ typedef struct {
 - **Configuration File:** `/config.json` (JSON format).
 
 ### 2.5 Reliability
-- **Watchdog:** Hardware task watchdog (20 seconds).
+- **Watchdog:** Hardware task watchdog (20 seconds). Resets are explicitly triggered before and after BLE scans and before each device read to prevent false triggers during long operations.
+- **Reboot Logic:** Centralized reboot handler (`requestReboot`) ensures:
+    - Orderly disconnection from MQTT broker.
+    - Serial logging of the reboot reason.
+    - Configurable delay (default 2s) to allow ongoing network operations (like HTTP responses) to complete.
+- **Reset Reason:** The device tracks the reason for the last restart using `esp_reset_reason()`. This information is:
+    - Output to the serial console on startup.
+    - Included in the status JSON as `resetReason`.
+    - Published via MQTT and displayed in the Web UI.
 - **Network Time:** NTP synchronization with `pool.ntp.org` for timestamping data.
 
 ### 2.6 Serial API

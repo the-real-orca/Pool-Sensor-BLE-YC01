@@ -4,6 +4,7 @@
 #include <DNSServer.h>
 
 #include "captivePortal.h"
+#include "webUtils.h"
 
 #include "config.h"
 
@@ -116,7 +117,7 @@ void captivePortalLoop()
                 captiveMode = false;
                 wiFiConnecting = false;
                 delay(500);
-                ESP.restart(); // restart the ESP32
+                requestReboot("Portal Timeout");
             }
         }
     }
