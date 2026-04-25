@@ -65,6 +65,21 @@ def workbench(request):
     driver.close()
 
 
+@pytest.fixture(scope="session")
+def slot(workbench):
+    """Fixture to find and return the first present DUT slot label."""
+    devices = workbench.get_devices()
+    for d in devices:
+        if not d.get("present"):
+            continue
+        if d.get("is_probe"):
+            continue
+        if d.get("usb_warning"):
+            continue
+        return d.get("label", "SLOT2")
+    pytest.skip("No DUT found on workbench")
+    return None
+
 @pytest.fixture
 def wifi_network(workbench):
     """Start a fresh AP for this test, stop on teardown."""

@@ -74,6 +74,23 @@ typedef struct {
 - **Watchdog:** Hardware task watchdog (20 seconds).
 - **Network Time:** NTP synchronization with `pool.ntp.org` for timestamping data.
 
+### 2.6 Serial API
+The ESP32 provides a Serial API for configuration and control via the serial port (Baudrate 115200).
+
+| Command | Description |
+| :--- | :--- |
+| **RESET** | Restarts the ESP32. |
+| **SCAN** | Clears the stored BLE address and forces a re-scan. |
+| **READ** | Forces an immediate BLE read cycle. |
+| **STATUS** | Prints the current status JSON to the serial output. |
+| **SET_CONFIG** | Enters configuration mode to receive a new `config.json` via serial. |
+
+#### 2.6.1 SET_CONFIG command usage
+1. Send `SET_CONFIG` via serial.
+2. The device responds with `Ready to receive config.json. Send JSON and end with newline.`
+3. Send the complete JSON content as a single line.
+4. The device validates the JSON, saves it to LittleFS, and reboots.
+
 ## 3. Build & Deployment
 - **Platform:** PlatformIO (Core `espressif32`).
 - **Framework:** Arduino.

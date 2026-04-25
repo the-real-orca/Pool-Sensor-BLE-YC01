@@ -1,5 +1,5 @@
 services:
-  lx790-gemini:
+  yc01-gemini:
     build: .
     container_name: yc01-gemini
     restart: unless-stopped

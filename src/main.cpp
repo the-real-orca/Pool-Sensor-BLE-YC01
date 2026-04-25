@@ -253,6 +253,88 @@ void setup()
 
 
 /**
+ * @brief Handles serial commands for the Serial API.
+ * 
+ * Commands:
+ * - RESET: Restarts the ESP32.
+ * - SCAN: Forces a re-scan for BLE devices.
+ * - READ: Forces an immediate BLE read.
+ * - STATUS: Prints the current status JSON to Serial.
+ * - SET_CONFIG: Receives a new config.json via Serial.
+ */
+void handleSerialApi() {
+  if (Serial.available()) {
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();
+    cmd.toUpperCase();
+
+    if (cmd == "RESET") {
+      Serial.println("Rebooting...");
+      delay(500);
+      ESP.restart();
+    } else if (cmd == "SCAN") {
+      Serial.println("Forcing re-scan...");
+      config.address = "";
+      lastScan = millis()/1000 - config.interval;
+    } else if (cmd == "READ") {
+      Serial.println("Forcing immediate read...");
+      lastScan = millis()/1000 - config.interval;
+    } else if (cmd == "STATUS") {
+      Serial.println(statusJsonBuffer);
+    } else if (cmd == "SET_CONFIG") {
+      Serial.println("Ready to receive config.json. Send JSON and end with newline.");
+      while (!Serial.available()) {
+        esp_task_wdt_reset();
+        delay(10);
+      }
+      String json = Serial.readStringUntil('\n');
+      JsonDocument doc;
+      DeserializationError error = deserializeJson(doc, json);
+      if (!error) {
+        File file = LittleFS.open("/config.json", "w");
+        if (file) {
+          serializeJson(doc, file);
+          file.close();
+          Serial.println("Config saved successfully. Rebooting...");
+          delay(500);
+          ESP.restart();
+        } else {
+          Serial.println("Failed to open config file for writing.");
+        }
+      } else {
+        Serial.print("JSON deserialization error: ");
+        Serial.println(error.c_str());
+      }
+    } else if (cmd == "GET_CONFIG") {
+      Serial.println("Current configuration:");
+      // Serialize config to JSON and print to Serial
+      StaticJsonDocument<BUFFER_SIZE> doc; // Use same buffer size as statusJsonBuffer
+      doc["wifiSSID"]       = config.wifiSSID;
+      doc["wifiPassword"]   = config.wifiPassword;
+      doc["wifiTimeout"]    = config.wifiTimeout;
+      doc["portalSSID"]     = config.portalSSID;
+      doc["portalPassword"] = config.portalPassword;
+      doc["portalTimeout"]  = config.portalTimeout;
+      doc["mqttServer"]     = config.mqttServer;
+      doc["mqttPort"]       = config.mqttPort;
+      doc["mqttTLS"]        = config.mqttTLS;
+      doc["mqttTopic"]      = config.mqttTopic;
+      doc["mqttUser"]       = config.mqttUser;
+      doc["mqttPassword"]   = config.mqttPassword;
+      doc["interval"]       = config.interval;
+      doc["name"]           = config.name;
+      doc["addr"]           = config.address;
+      serializeJsonPretty(doc, Serial);
+      Serial.println(); // Add a newline for better readability
+    } else if (cmd != "") {
+      Serial.print("Unknown command: ");
+      Serial.println(cmd);
+      Serial.println("Available commands: RESET, SCAN, READ, STATUS, SET_CONFIG, GET_CONFIG");
+    }
+  }
+}
+
+/**
  * @brief Standard Arduino loop function.
  * 
  * Handles network tasks, BLE scanning/reading, and MQTT data publishing.
@@ -266,12 +348,13 @@ void loop()
   // reset watchdog
   esp_task_wdt_reset();
 
+  // handle serial API
+  handleSerialApi();
 
   // handle network tasks
   captivePortalLoop();
   mqttLoop();
   webUtilsLoop();
-
 
   if ( !isCaptive && !WiFi.isConnected()) {
     if ( !diconnectedAt ) {
