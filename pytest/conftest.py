@@ -6,6 +6,7 @@ Usage:
 
 import os
 import uuid
+import json
 
 import pytest
 
@@ -18,12 +19,6 @@ def pytest_addoption(parser):
         default=os.environ.get("WORKBENCH_URL", "http://esp32-workbench.home:8080/"),
         help="Portal URL for the Embedded Workbench Pi",
     )
-    parser.addoption(
-        "--run-dut",
-        action="store_true",
-        default=False,
-        help="Run tests that require a DUT connected",
-    )
 
 
 def pytest_configure(config):
@@ -31,15 +26,6 @@ def pytest_configure(config):
         "markers",
         "requires_dut: test needs a DUT or second WiFi device connected",
     )
-
-
-def pytest_collection_modifyitems(config, items):
-    run_dut = config.getoption("--run-dut", default=False)
-    if not run_dut:
-        skip_dut = pytest.mark.skip(reason="Requires a DUT (use --run-dut)")
-        for item in items:
-            if "requires_dut" in item.keywords:
-                item.add_marker(skip_dut)
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
@@ -89,3 +75,19 @@ def wifi_network(workbench):
     workbench.ap_start(ssid, password)
     yield {"ssid": ssid, "password": password, "ap_ip": "192.168.4.1"}
     workbench.ap_stop()
+
+@pytest.fixture
+def wifi_connection(workbench, slot, wifi_network):
+    """Fixture to configure ESP and ensure it is connected to the workbench AP."""
+    ssid = wifi_network["ssid"]
+    password = wifi_network["password"]
+    
+    print(f"Configuring ESP to connect to {ssid}...")
+    workbench.serial_write(slot=slot, data="SET_CONFIG", pattern="Ready to receive config.json", timeout=10)
+    config = {"wifiSSID": ssid, "wifiPassword": password}
+    workbench.serial_write(slot=slot, data=json.dumps(config) + "\n", timeout=10)
+    
+    print("Waiting for connection...")
+    station = workbench.wait_for_station(timeout=45)
+    assert station.get("ip"), "Could not get ESP IP address"
+    return station

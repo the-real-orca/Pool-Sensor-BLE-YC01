@@ -13,7 +13,7 @@ This document consolidates the project's tasks and roadmap, providing a prioriti
 - [x] **Captive Portal:** rework captive portal implementation, deactivate after timeout, retry to connect to Wifi, do not start captive portal unless reset
 - [x] **Serial API:** add serial command API
         -> serial commands RESET, SCAN, READ, STATUS, SET_CONFIG, GET_CONFIG implemented
-- [ ] **Reboot Logic:** Verify the reboot timer and watchdog interaction.
+- [x] **Reboot Logic:** Verify the reboot timer and watchdog interaction.
 - [ ] **Security:** disable download, or read out of config.json unless in DEBUG is set (debug mode)
 - [ ] **General Code Cleanliness:** Clean up `main.cpp` and other source files (remove duplicate lines, commented-out code).
 - [ ] **Technical Specification (TSD):** Expand on the BLE decoding algorithm and the internal state machine, document status LED meaning.
