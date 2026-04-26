@@ -46,22 +46,12 @@ def test_reboot_http(workbench, slot, wifi_connection):
     resp = workbench.http_get(f"http://{esp_ip}/cmd?param=reboot&value=1", timeout=10)
     assert resp.status_code == 200, f"HTTP command failed with status {resp.status_code}"
 
-    # Verify reboot via Serial
-    print("Waiting for reboot to complete...")
-    time.sleep(2)
-    
-    result = workbench.serial_output(slot=slot, lines=150)
-    if "lines" in result:
-        full_output = "\n".join([line.get("text", "") for line in result.get("lines", [])])
-    else:
-        full_output = "\n".join(result.get("output", []))
-    
-    assert "application starting" in full_output, "Did not detect 'application starting' in output"
-    
-    # We print the reason for debugging, without strictly asserting the software reset 
-    # to avoid flakiness from DTR/RTS hardware resets.
-    print(f"Full output tail: {full_output[-200:]}")
-    print("HTTP reboot verified successfully")
+    full_output = "\n".join(result.get("output", []))
+    assert "Reboot requested. Reason: Serial RESET" in full_output
+    assert "application starting" in full_output
+    assert "Reset reason: Software reset" in full_output
+
+    assert result.get("matched"), "Serial console did not show reboot request with reason"
 
 
 @pytest.mark.skip(reason="no MQTT connection to workbench")

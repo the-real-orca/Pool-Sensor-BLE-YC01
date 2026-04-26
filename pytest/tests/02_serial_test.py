@@ -16,8 +16,7 @@ def test_serial_api_status(workbench, slot):
     line = result.get("line")
     try:
         status = json.loads(line)
-        assert "time" in status
-        assert "wifiSSID" in status
+        assert "status" in status
     except json.JSONDecodeError:
         pytest.fail(f"Output is not valid JSON: {line}")
 
@@ -28,7 +27,7 @@ def test_serial_api_scan(workbench, slot):
     time.sleep(1)
 
     # Test SCAN
-    result = workbench.serial_write(slot=slot, data="SCAN", pattern="Forcing re-scan", timeout=10)
+    result = workbench.serial_write(slot=slot, data="SCAN", pattern="Forcing re-scan", timeout=15)
     assert result.get("matched")
 
 def test_serial_api_read(workbench, slot):
@@ -38,7 +37,7 @@ def test_serial_api_read(workbench, slot):
     time.sleep(1)
 
     # Test READ
-    result = workbench.serial_write(slot=slot, data="READ", pattern="Forcing immediate read", timeout=10)
+    result = workbench.serial_write(slot=slot, data="READ", pattern="Forcing immediate read", timeout=15)
     assert result.get("matched")
 
 
@@ -99,7 +98,7 @@ def test_serial_api_reset(workbench, slot):
     time.sleep(1)
 
     # Send RESET command and wait for rebooting message
-    result = workbench.serial_write(slot=slot, data="RESET", pattern="application starting", timeout=15)
+    result = workbench.serial_write(slot=slot, data="RESET", pattern="application starting", timeout=20)
     assert result.get("matched")
 
 

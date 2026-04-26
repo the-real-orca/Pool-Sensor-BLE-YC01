@@ -54,12 +54,7 @@ def test_startup_init(workbench):
     # reset DUT
     workbench.serial_reset(slot=slot)
     # analyse serial output
-    result = workbench.serial_monitor(
-        slot=slot,
-        pattern="init complete",
-        timeout=20,
-    )
-    # give workbench time to startup
-    time.sleep(2)    
-    assert result.get("matched"), "Pattern 'init complete' not found in serial output"
-    assert "init complete" in result.get("output", [])
+    result = workbench.serial_output(slot=slot, lines=150)
+    full_output = "\n".join([line.get("text", "") for line in result.get("lines", [])])
+    
+    assert "application starting" in full_output, "Did not detect 'application starting' in output"

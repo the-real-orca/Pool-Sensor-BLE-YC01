@@ -1,4 +1,6 @@
 #include <Arduino.h>
+#include "esp_task_wdt.h"
+
 #include <WiFi.h>
 #include <esp_wifi.h>
 #include <DNSServer.h>
@@ -8,7 +10,6 @@
 
 #include "config.h"
 
-#define WIFI_TIMEOUT 5000 // timeout for WiFi connection attempts in ms
 IPAddress apIP(192, 168, 4, 1);
 
 DNSServer dnsServer;
@@ -16,6 +17,8 @@ bool wiFiConnecting = false;
 bool captiveMode = false;
 unsigned long timestamp = 0;
 unsigned long lastWifiUpdate = 0;
+
+extern void handleSerialApi();
 
 int captivePortalSetup()
 {
@@ -51,7 +54,7 @@ int captivePortalSetup()
                 }
                 else
                 {
-                    if ((timestamp - lastWifiUpdate) > WIFI_TIMEOUT)
+                    if ((timestamp - lastWifiUpdate) > ((uint32_t) config.wifiTimeout * 1000))
                     {
                         // switch to captive portal mode if not connected
                         WiFi.mode(WIFI_OFF);
@@ -83,7 +86,6 @@ int captivePortalSetup()
                 Serial.print("AP SSID: "); Serial.println(config.portalSSID);
                 Serial.print("AP password: "); Serial.println(config.portalPassword);
                 Serial.print("AP IP address: "); Serial.println(WiFi.softAPIP());
-
                 // Setup the DNS server redirecting all the domains
                 dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
                 dnsServer.start(53, "*", WiFi.softAPIP());
@@ -93,6 +95,12 @@ int captivePortalSetup()
             }
         }
         delay(100);
+
+        // reset watchdog
+        esp_task_wdt_reset();
+
+        // handle serial API
+        handleSerialApi();
     }
     return -1; // should never reach here
 }
