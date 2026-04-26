@@ -27,7 +27,7 @@ int captivePortalSetup()
     WiFi.mode(WIFI_OFF);          // this calls esp_wifi_stop internally
     delay(50);
 
-    while (true)
+    while (!config.offlineMode)
     {
         timestamp = millis();
         wl_status_t wifiStatus = WiFi.status();
@@ -49,7 +49,6 @@ int captivePortalSetup()
                 {
                     DEBUG_print("WiFi successfully connected with IP: ");
                     DEBUG_println(WiFi.localIP());
-                    captivePortalLoop();
                     return 0; // exit captive portal if connected
                 }
                 else
@@ -94,7 +93,7 @@ int captivePortalSetup()
                 return 1; // captive portal mode active
             }
         }
-        delay(100);
+        delay(50);
 
         // reset watchdog
         esp_task_wdt_reset();
@@ -102,7 +101,7 @@ int captivePortalSetup()
         // handle serial API
         handleSerialApi();
     }
-    return -1; // should never reach here
+    return -1; // offline mode
 }
 
 void captivePortalLoop()

@@ -2,6 +2,16 @@ import pytest
 import time
 import json
 
+def test_serial_api_offline(workbench, slot):
+    """Test the OFFLINE command of the Serial API."""
+
+    # give workbench time to startup
+    time.sleep(1)
+
+    # Send STATUS and wait for JSON line (starts with {)
+    result = workbench.serial_write(slot=slot, data="OFFLINE", pattern='Offline Mode', timeout=10)
+    assert result.get("matched")
+
 def test_serial_api_status(workbench, slot):
     """Test the STATUS command of the Serial API."""
 
@@ -9,7 +19,7 @@ def test_serial_api_status(workbench, slot):
     time.sleep(1)
 
     # Send STATUS and wait for JSON line (starts with {)
-    result = workbench.serial_write(slot=slot, data="STATUS", pattern='}', timeout=15)
+    result = workbench.serial_write(slot=slot, data="STATUS", pattern='}', timeout=10)
     assert result.get("matched"), "Pattern '{' not found after STATUS command"
     
     # Validate it is a valid JSON (the whole line is captured because pattern matches it)
@@ -27,7 +37,7 @@ def test_serial_api_scan(workbench, slot):
     time.sleep(1)
 
     # Test SCAN
-    result = workbench.serial_write(slot=slot, data="SCAN", pattern="Forcing re-scan", timeout=15)
+    result = workbench.serial_write(slot=slot, data="SCAN", pattern="Forcing re-scan", timeout=10)
     assert result.get("matched")
 
 def test_serial_api_read(workbench, slot):
@@ -37,7 +47,7 @@ def test_serial_api_read(workbench, slot):
     time.sleep(1)
 
     # Test READ
-    result = workbench.serial_write(slot=slot, data="READ", pattern="Forcing immediate read", timeout=15)
+    result = workbench.serial_write(slot=slot, data="READ", pattern="Forcing immediate read", timeout=10)
     assert result.get("matched")
 
 

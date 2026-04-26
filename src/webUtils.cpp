@@ -323,32 +323,11 @@ void webServerInit(AsyncWebServer &webServer, bool isCaptive)
     webServer.on("/config.json", HTTP_GET, [](AsyncWebServerRequest *request)
         {
             DEBUG_println("send config.json");
-            // Read current config and mask passwords before sending
-            JsonDocument doc;
-            doc["wifiSSID"]       = config.wifiSSID;
-            #if DEBUG_SECURITY
-                doc["wifiPassword"]   = config.wifiPassword;
-                doc["mqttPassword"]   = config.mqttPassword;
-            #else
-                doc["wifiPassword"]   = "***";
-                doc["mqttPassword"]   = "***";
-            #endif
-            doc["wifiTimeout"]    = config.wifiTimeout;
-            doc["portalSSID"]     = config.portalSSID;
-            doc["portalPassword"] = config.portalPassword;
-            doc["portalTimeout"]  = config.portalTimeout;
-            doc["mqttServer"]     = config.mqttServer;
-            doc["mqttPort"]       = config.mqttPort;
-            doc["mqttTLS"]        = config.mqttTLS;
-            doc["mqttTopic"]      = config.mqttTopic;
-            doc["mqttUser"]       = config.mqttUser;
-            doc["interval"]       = config.interval;
-            doc["name"]           = config.name;
-            doc["addr"]           = config.address;
-
             String response;
-            serializeJson(doc, response);
+            serializeConfig(response);
+
             request->send(200, "application/json", response);
+
         });
 
     webServer.on("/config.json", HTTP_PUT, [](AsyncWebServerRequest *request)

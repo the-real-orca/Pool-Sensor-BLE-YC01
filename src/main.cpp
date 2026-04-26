@@ -49,6 +49,7 @@ String getResetReasonName(esp_reset_reason_t reason) {
 
 // wifi
 static bool isCaptive = false;
+bool isOffline = false;
 static uint32_t diconnectedAt = 0; // timestamp when the device was disconnected from WiFi
 
 // web server
@@ -141,6 +142,7 @@ void readConfig()
   config.wifiSSID = doc["wifiSSID"] | "SSID";
   config.wifiPassword = doc["wifiPassword"] | "";
   config.wifiTimeout = doc["wifiTimeout"] | 600;
+  config.offlineMode = doc["offlineMode"] | false;
   config.portalSSID = doc["portalSSID"] | "ESP32-Portal";
   config.portalPassword = doc["portalPassword"] | "";
   config.portalTimeout = doc["portalTimeout"] | 600;
@@ -245,7 +247,7 @@ void setup()
   if (!LittleFS.begin(true))
     Serial.println(F("init LittleFS error"));
 
-  delay (500); // wait for filesystem to be ready
+  delay (100); // wait for filesystem to be ready
 
   if (!LittleFS.exists("/index.html"))
   {
@@ -329,6 +331,10 @@ void handleSerialApi() {
 
     if (cmd == "RESET") {
       requestReboot("Serial RESET");
+    } else if (cmd == "OFFLINE") {
+      Serial.println("Offline Mode");
+      WiFi.mode(WIFI_OFF);
+      config.offlineMode = true;
     } else if (cmd == "SCAN") {
       Serial.println("Forcing re-scan...");
       config.address = "";
@@ -367,36 +373,12 @@ void handleSerialApi() {
     } else if (cmd == "GET_CONFIG") {
       Serial.println("Current configuration:");
       // Serialize config to JSON and print to Serial
-      JsonDocument doc; 
-      doc["wifiSSID"]       = config.wifiSSID;
-      #if DEBUG_SECURITY
-        doc["wifiPassword"]   = config.wifiPassword;
-      #else
-        doc["wifiPassword"]   = "***";
-      #endif
-      doc["wifiTimeout"]    = config.wifiTimeout;
-      doc["portalSSID"]     = config.portalSSID;
-      doc["portalPassword"] = config.portalPassword;
-      doc["portalTimeout"]  = config.portalTimeout;
-      doc["mqttServer"]     = config.mqttServer;
-      doc["mqttPort"]       = config.mqttPort;
-      doc["mqttTLS"]        = config.mqttTLS;
-      doc["mqttTopic"]      = config.mqttTopic;
-      doc["mqttUser"]       = config.mqttUser;
-      #if DEBUG_SECURITY
-        doc["mqttPassword"]   = config.mqttPassword;
-      #else
-        doc["mqttPassword"]   = "***";
-      #endif
-      doc["interval"]       = config.interval;
-      doc["name"]           = config.name;
-      doc["addr"]           = config.address;
-      serializeJsonPretty(doc, Serial);
+      serializeConfig(Serial, true);
       Serial.println(); // Add a newline for better readability
     } else if (cmd != "") {
       Serial.print("Unknown command: ");
       Serial.println(cmd);
-      Serial.println("Available commands: RESET, SCAN, READ, STATUS, SET_CONFIG, GET_CONFIG");
+      Serial.println("Available commands: RESET, OFFLINE, SCAN, READ, STATUS, SET_CONFIG, GET_CONFIG");
     }
   }
 }
@@ -423,7 +405,7 @@ void loop()
   mqttLoop();
   webUtilsLoop();
 
-  if ( !isCaptive && !WiFi.isConnected()) {
+  if ( !config.offlineMode && !isCaptive && !WiFi.isConnected()) {
     if ( !diconnectedAt ) {
       diconnectedAt = uptime; // set disconnection timestamp
       DEBUG_println("WiFi disconnected, waiting for reconnection...");
