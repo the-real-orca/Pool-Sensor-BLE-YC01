@@ -304,6 +304,81 @@ void scanWifiNetworks()
 
 void webServerInit(AsyncWebServer &webServer, bool isCaptive)
 {
+    webServer.on("/update", HTTP_GET, [](AsyncWebServerRequest *request)
+        { request->send(200, "text/html", UPDATE_HTML, templateProcessorUpdate); });
+    webServer.on("/execupdate", HTTP_POST, [](AsyncWebServerRequest *request)
+        { request->send(200, "text/plain", "update finished"); }, handleUpdate);
+
+    webServer.on("/fileupload", HTTP_POST, [](AsyncWebServerRequest *request)
+        { request->send(200, "text/plain", "upload finished"); }, handleFileUpload);
+    webServer.on("/del", HTTP_GET, handleFileDelete);
+
+    webServer.on("/config", HTTP_GET, [](AsyncWebServerRequest *request)
+        {
+            request->send(LittleFS, "/config.html", "text/html");
+            DEBUG_println("config -> config.html");
+            scanWifi = true; // trigger wifi scan on config load
+        });
+
+    webServer.on("/config.json", HTTP_GET, [](AsyncWebServerRequest *request)
+        {
+            DEBUG_println("send config.json");
+            // Read current config and mask passwords before sending
+            JsonDocument doc;
+            doc["wifiSSID"]       = config.wifiSSID;
+            #if DEBUG_SECURITY
+                doc["wifiPassword"]   = config.wifiPassword;
+                doc["mqttPassword"]   = config.mqttPassword;
+            #else
+                doc["wifiPassword"]   = "***";
+                doc["mqttPassword"]   = "***";
+            #endif
+            doc["wifiTimeout"]    = config.wifiTimeout;
+            doc["portalSSID"]     = config.portalSSID;
+            doc["portalPassword"] = config.portalPassword;
+            doc["portalTimeout"]  = config.portalTimeout;
+            doc["mqttServer"]     = config.mqttServer;
+            doc["mqttPort"]       = config.mqttPort;
+            doc["mqttTLS"]        = config.mqttTLS;
+            doc["mqttTopic"]      = config.mqttTopic;
+            doc["mqttUser"]       = config.mqttUser;
+            doc["interval"]       = config.interval;
+            doc["name"]           = config.name;
+            doc["addr"]           = config.address;
+
+            String response;
+            serializeJson(doc, response);
+            request->send(200, "application/json", response);
+        });
+
+    webServer.on("/config.json", HTTP_PUT, [](AsyncWebServerRequest *request)
+            { 
+                request->send(200, "text/plain", "ok"); 
+            }, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
+            {
+                #if !DEBUG_SECURITY
+                    return;
+                #endif
+                if ( index != 0 || len < 2 )
+                    return request->send(500, "text/plain", "BAD CONFIG");
+
+                File file = LittleFS.open("/config.json", "w");
+                file.write(data, len);
+                file.close();
+                requestReboot("Config saved");
+            });
+
+    webServer.on("/wifiList", HTTP_GET, [](AsyncWebServerRequest *request)
+        {
+            request->send(200, "application/json", wifiListJson);
+            scanWifi = true; // trigger wifi scan on config load
+        });
+
+    // enable CORS for all origins
+    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
+    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "GET, POST, PUT");
+    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Accept, Content-Type, Authorization");
+    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Credentials", "true");
 
     webServer.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
 
@@ -324,44 +399,6 @@ void webServerInit(AsyncWebServer &webServer, bool isCaptive)
         } 
     });
 
-    webServer.on("/update", HTTP_GET, [](AsyncWebServerRequest *request)
-        { request->send(200, "text/html", UPDATE_HTML, templateProcessorUpdate); });
-    webServer.on("/execupdate", HTTP_POST, [](AsyncWebServerRequest *request)
-        { request->send(200, "text/plain", "update finished"); }, handleUpdate);
-
-    webServer.on("/fileupload", HTTP_POST, [](AsyncWebServerRequest *request)
-        { request->send(200, "text/plain", "upload finished"); }, handleFileUpload);
-    webServer.on("/del", HTTP_GET, handleFileDelete);
-
-    webServer.on("/config", HTTP_GET, [](AsyncWebServerRequest *request)
-        {
-            request->send(LittleFS, "/config.html", "text/html");
-            DEBUG_println("config -> config.html");
-            scanWifi = true; // trigger wifi scan on config load
-        });
-
-    webServer.on("/config.json", HTTP_PUT, [](AsyncWebServerRequest *request)
-        { request->send(200, "text/plain", "ok"); }, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
-            {
-                if ( index != 0 || len < 2 )
-                    return request->send(500, "text/plain", "BAD CONFIG");
-
-                File file = LittleFS.open("/config.json", "w");
-                file.write(data, len);
-                file.close();
-                requestReboot("Config saved");
-            });
-    webServer.on("/wifiList", HTTP_GET, [](AsyncWebServerRequest *request)
-        {
-            request->send(200, "application/json", wifiListJson);
-            scanWifi = true; // trigger wifi scan on config load
-        });
-
-    // enable CORS for all origins
-    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
-    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "GET, POST, PUT");
-    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Accept, Content-Type, Authorization");
-    DefaultHeaders::Instance().addHeader("Access-Control-Allow-Credentials", "true");
 }
 
 void webUtilsLoop()

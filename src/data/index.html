@@ -13,6 +13,10 @@
     <h1 id="title">Pool Sensor BLE-YC01</h1>
   </div>
   <div class="content">
+    <div id="security-warning" class="card" style="display:none; border: 2px solid red; padding: 10px; margin-bottom: 20px;">
+      <h2 style="color: red;">Security Warning</h2>
+      <p>DEBUG_SECURITY is enabled. Configuration is exposed.</p>
+    </div>    
     <div class="card">
       <div class="main">
         <h2 id="msg_name" class="">name</h2>
@@ -129,6 +133,16 @@
     }
 
     updateStatus();
+    
+    // Check security status
+    fetch('config.json')
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.wifiPassword !== "***") {
+          document.getElementById("security-warning").style.display = "block";
+        }
+      })
+      .catch((err) => console.log("Security restricted or error"));
   }  
   </script>
 </body>

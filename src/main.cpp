@@ -158,17 +158,25 @@ void readConfig()
 
   DEBUG_println("config");
   DEBUG_print("  wifiSSID: "); DEBUG_println(config.wifiSSID);
-  DEBUG_print("  wifiPassword: "); DEBUG_println(config.wifiPassword);
+  #if DEBUG_SECURITY
+    DEBUG_print("  wifiPassword: "); DEBUG_println(config.wifiPassword);
+  #else
+    DEBUG_println("  wifiPassword: ***");
+  #endif
   DEBUG_print("  wifiTimeout: "); DEBUG_println(config.wifiTimeout);
   DEBUG_print("  portalSSID: "); DEBUG_println(config.portalSSID);
-  // DEBUG_print("  portalPassword: "); DEBUG_println(config.portalPassword);
+  DEBUG_print("  portalPassword: "); DEBUG_println(config.portalPassword);
   DEBUG_print("  portalTimeout: "); DEBUG_println(config.portalTimeout);
   DEBUG_print("  mqttServer: "); DEBUG_println(config.mqttServer);
   DEBUG_print("  mqttPort: "); DEBUG_println(config.mqttPort);
   DEBUG_print("  mqttTLS: "); DEBUG_println(config.mqttTLS);
   DEBUG_print("  mqttTopic: "); DEBUG_println(config.mqttTopic);
   DEBUG_print("  mqttUser: "); DEBUG_println(config.mqttUser);
-  // DEBUG_print("  mqttPassword: "); DEBUG_println(config.mqttPassword);
+  #if DEBUG_SECURITY
+    DEBUG_print("  mqttPassword: "); DEBUG_println(config.mqttPassword);
+  #else
+    DEBUG_println("  mqttPassword: ***");
+  #endif  
   DEBUG_print("  interval: "); DEBUG_println(config.interval);
   DEBUG_print("  name: "); DEBUG_println(config.name);
   DEBUG_print("  address: "); DEBUG_println(config.address);
@@ -223,12 +231,15 @@ void setup()
   while (!Serial)
     ;
   Serial.println("\n\napplication starting ...");
+  #if DEBUG_SECURITY
+    Serial.println("!!! WARNING: DEBUG_SECURITY IS ENABLED - CONFIGURATION EXPOSED !!!");
+  #endif
   Serial.print("Build date: ");
   Serial.print(__DATE__);
   Serial.print(" time: ");
   Serial.println(__TIME__);
   
-  strcpy(statusJsonBuffer, "{}"); // reset json buffer
+  strcpy(statusJsonBuffer, "{\"status\": \"init\"}"); // reset json buffer
 
   // init filesystem
   if (!LittleFS.begin(true))
@@ -339,6 +350,10 @@ void handleSerialApi() {
       if (!error) {
         File file = LittleFS.open("/config.json", "w");
         if (file) {
+          // Only update if not masked
+          if (doc["wifiPassword"] == "***") doc["wifiPassword"] = config.wifiPassword;
+          if (doc["mqttPassword"] == "***") doc["mqttPassword"] = config.mqttPassword;
+          saveConfig(); // Assume saveConfig updates global config object
           serializeJson(doc, file);
           file.close();
           requestReboot("Serial SET_CONFIG");
@@ -354,7 +369,11 @@ void handleSerialApi() {
       // Serialize config to JSON and print to Serial
       JsonDocument doc; 
       doc["wifiSSID"]       = config.wifiSSID;
-      doc["wifiPassword"]   = config.wifiPassword;
+      #if DEBUG_SECURITY
+        doc["wifiPassword"]   = config.wifiPassword;
+      #else
+        doc["wifiPassword"]   = "***";
+      #endif
       doc["wifiTimeout"]    = config.wifiTimeout;
       doc["portalSSID"]     = config.portalSSID;
       doc["portalPassword"] = config.portalPassword;
@@ -364,7 +383,11 @@ void handleSerialApi() {
       doc["mqttTLS"]        = config.mqttTLS;
       doc["mqttTopic"]      = config.mqttTopic;
       doc["mqttUser"]       = config.mqttUser;
-      doc["mqttPassword"]   = config.mqttPassword;
+      #if DEBUG_SECURITY
+        doc["mqttPassword"]   = config.mqttPassword;
+      #else
+        doc["mqttPassword"]   = "***";
+      #endif
       doc["interval"]       = config.interval;
       doc["name"]           = config.name;
       doc["addr"]           = config.address;

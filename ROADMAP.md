@@ -14,11 +14,12 @@ This document consolidates the project's tasks and roadmap, providing a prioriti
 - [x] **Serial API:** add serial command API
         -> serial commands RESET, SCAN, READ, STATUS, SET_CONFIG, GET_CONFIG implemented
 - [x] **Reboot Logic:** Verify the reboot timer and watchdog interaction.
-- [ ] **Security:** disable download, or read out of config.json unless in DEBUG is set (debug mode)
+- [x] **Security:** disable download, or read out of config.json unless in DEBUG is set (debug mode)
+- [ ] **Web Connection:** fix WiFi connection, do not restart captive portal unless explizite HW reset
 - [ ] **General Code Cleanliness:** Clean up `main.cpp` and other source files (remove duplicate lines, commented-out code).
 - [ ] **Technical Specification (TSD):** Expand on the BLE decoding algorithm and the internal state machine, document status LED meaning.
 - [ ] **API Documentation:** Document the `/cmd` and `/status` endpoints.
-- [ ] **Config Cleanup:** Finalize `config_t` structure and remove legacy TODOs.
+- [ ] **Config Cleanup:** Finalize `config_t` structure and remove legacy TODOs., rename config.address -> config.bleAddress
 
 ## Phase 2: Tests (Medium Priority)
 - [ ] **Unit Tests:** Implement tests Captive Portal, WiFi AP connection and Web site.

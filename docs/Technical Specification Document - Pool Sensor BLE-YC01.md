@@ -82,6 +82,17 @@ typedef struct {
     - Published via MQTT and displayed in the Web UI.
 - **Network Time:** NTP synchronization with `pool.ntp.org` for timestamping data.
 
+### 2.7 Security
+The system implements multiple layers of security to protect sensitive configuration data:
+- **`DEBUG_SECURITY` Flag:** A build-time flag (`src/config.h`) that enables/disables sensitive features.
+    - **Disabled (Production):**
+        - WiFi and MQTT passwords are masked (`***`) in log outputs and Serial API responses.
+        - `config.json` PUT requests are ignored.
+    - **Enabled (Debug):**
+        - All features and logs are fully accessible.
+- **Startup Protection:** The system issues an explicit warning message via Serial console on startup, indicating whether the device is running in a secured or exposed state.
+- **Web UI Warning:** The configuration web interface displays a prominent security warning if `DEBUG_SECURITY` is active.
+
 ### 2.6 Serial API
 The ESP32 provides a Serial API for configuration and control via the serial port (Baudrate 115200).
 
@@ -91,13 +102,15 @@ The ESP32 provides a Serial API for configuration and control via the serial por
 | **SCAN** | Clears the stored BLE address and forces a re-scan. |
 | **READ** | Forces an immediate BLE read cycle. |
 | **STATUS** | Prints the current status JSON to the serial output. |
-| **SET_CONFIG** | Enters configuration mode to receive a new `config.json` via serial. |
+| **SET_CONFIG** | Enters configuration mode to receive a new `config.json` via serial. (Blocked if `DEBUG_SECURITY` is 0). |
+| **GET_CONFIG** | Returns the current configuration. WiFi and MQTT passwords are masked if `DEBUG_SECURITY` is 0. |
 
 #### 2.6.1 SET_CONFIG command usage
 1. Send `SET_CONFIG` via serial.
 2. The device responds with `Ready to receive config.json. Send JSON and end with newline.`
 3. Send the complete JSON content as a single line.
 4. The device validates the JSON, saves it to LittleFS, and reboots.
+
 
 ## 3. Build & Deployment
 - **Platform:** PlatformIO (Core `espressif32`).

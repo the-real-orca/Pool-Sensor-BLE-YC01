@@ -6,6 +6,7 @@
  * Debug
  */
 #define DEBUG_SERIAL_PRINT 1 // 1: enable debug serial print, 0: disable debug serial print
+#define DEBUG_SECURITY 0     // 1: security disabled (passwords plaintext), 0: security enabled (passwords masked)
 
 #if DEBUG_SERIAL_PRINT
   #define DEBUG_println(x)  Serial.println(x)
