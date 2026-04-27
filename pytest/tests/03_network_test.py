@@ -24,7 +24,7 @@ def test_network_wifi_lifecycle(workbench, slot, wifi_network):
     config_json = json.dumps(config)
     
     # Send SET_CONFIG command with JSON
-    result = workbench.serial_write(slot=slot, data=f"SET_CONFIG {config_json}", pattern="Config saved successfully.", timeout=20)
+    result = workbench.serial_write(slot=slot, data=f"SET_CONFIG {config_json}\n", pattern="Config saved successfully.", timeout=20)
     assert result.get("matched"), "ESP did not save config via SET_CONFIG"
     
     # 2. Wait for the ESP to connect to the AP

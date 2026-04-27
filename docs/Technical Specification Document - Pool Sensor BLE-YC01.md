@@ -93,8 +93,18 @@ The system implements multiple layers of security to protect sensitive configura
 - **Startup Protection:** The system issues an explicit warning message via Serial console on startup, indicating whether the device is running in a secured or exposed state.
 - **Web UI Warning:** The configuration web interface displays a prominent security warning if `DEBUG_SECURITY` is active.
 
-### 2.6 Serial API
-The ESP32 provides a Serial API for configuration and control via the serial port (Baudrate 115200).
+### 2.6 Internal State Machine
+To ensure non-blocking operation and responsiveness of the Web UI and Serial API, the system uses a state machine in the main loop for BLE operations.
+
+| State | Description |
+| :--- | :--- |
+| `BLE_IDLE` | Waiting for the next measurement interval. |
+| `BLE_START_SCAN` | Initiates an asynchronous NimBLE scan (3 seconds duration). |
+| `BLE_SCANNING` | Scan is running in the background. System remains responsive to other tasks. |
+| `BLE_PROCESS_RESULTS` | Scan results are analyzed, devices are connected/read, and data is published via MQTT. |
+
+### 2.7 Serial API
+The ESP32 provides a non-blocking Serial API for configuration and control via the serial port (Baudrate 115200). It uses an internal buffer and only executes commands upon receiving a newline (`\n`).
 
 | Command | Description |
 | :--- | :--- |

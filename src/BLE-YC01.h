@@ -35,21 +35,33 @@ bool compareBLEAddress(const NimBLEAddress& address, const char* targetAddress);
  * @return true if addresses match, false otherwise
  */
 bool compareBLEAddress(const NimBLEAddress& address, const String& targetAddress);
-
 /**
  * @brief Class to handle communication with BLE-YC01 sensor
  */
 class BLE_YC01 {
 public:
+    /**
+     * @brief Starts an asynchronous scan for available BLE-YC01 devices.
+     * @param duration Scan duration in seconds.
+     * @return true if scan started successfully.
+     */
+    static bool startScan(uint32_t duration = 3);
 
     /**
-     * @brief Scans for available BLE-YC01 devices
-     * @return A vector of NimBLEAddress of found devices
+     * @brief Checks if a scan is currently running.
+     * @return true if scanning.
      */
-    static std::vector<NimBLEAddress> scan();
+    static bool isScanning();
+
+    /**
+     * @brief Gets the addresses of found devices after a scan is complete.
+     * @return A vector of NimBLEAddress.
+     */
+    static std::vector<NimBLEAddress> getFoundDevices();
 
     /**
      * @brief Constructor for BLE_YC01
+...
      * @param addr The BLE address of the sensor
      * @param name Optional name for the sensor
      */

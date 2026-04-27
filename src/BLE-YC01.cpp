@@ -82,27 +82,61 @@ static uint8_t checksum(const uint8_t* data, int length)
 }
 
 
-std::vector<NimBLEAddress> BLE_YC01::scan()
-{
-    std::vector<NimBLEAddress> addrList;
-    NimBLEDevice::init("");
-    NimBLEScan *pScan = NimBLEDevice::getScan();
-    NimBLEScanResults results = pScan->getResults(2500);
+static std::vector<NimBLEAddress> foundDevices;
+static bool scanningActive = false;
 
-    // Iterate through the results
-    for (int i = 0; i < results.getCount(); i++) {
-        const NimBLEAdvertisedDevice *device = results.getDevice(i);
-        if ( !device->isAdvertisingService(serviceUUID) ) {
-            continue;
+class MyScanCallbacks : public NimBLEScanCallbacks {
+    void onResult(const NimBLEAdvertisedDevice *device) {
+        if (device->isAdvertisingService(serviceUUID)) {
+            bool alreadyFound = false;
+            for (const auto& addr : foundDevices) {
+                if (addr == device->getAddress()) {
+                    alreadyFound = true;
+                    break;
+                }
+            }
+            if (!alreadyFound) {
+                DEBUG_print("Found device: "); DEBUG_print(device->getName().c_str());
+                DEBUG_print(" ("); DEBUG_print(device->getAddress().toString().c_str()); DEBUG_println(")");
+                foundDevices.push_back(device->getAddress());
+            }
         }
-
-        DEBUG_print("Found device: "); DEBUG_print(device->getName().c_str());
-        DEBUG_print(" ("); DEBUG_print(device->getAddress().toString().c_str()); DEBUG_println(")");
-    
-        addrList.push_back(device->getAddress());
     }
 
-    return addrList;
+    void onScanEnd(const NimBLEScanResults &results, int reason) {
+        scanningActive = false;
+        DEBUG_println("Scan complete.");
+    }
+};
+
+static MyScanCallbacks scanCallbacks;
+
+bool BLE_YC01::startScan(uint32_t duration) {
+    if (scanningActive) return false;
+    
+    foundDevices.clear();
+    scanningActive = true;
+    
+    NimBLEDevice::init("");
+    NimBLEScan *pScan = NimBLEDevice::getScan();
+    pScan->setScanCallbacks(&scanCallbacks);
+    pScan->setInterval(45);
+    pScan->setWindow(15);
+    pScan->setActiveScan(true);
+    
+    if (!pScan->start(duration)) { // duration is in seconds, async by default in NimBLE 2.x
+        scanningActive = false;
+        return false;
+    }
+    return true;
+}
+
+bool BLE_YC01::isScanning() {
+    return scanningActive;
+}
+
+std::vector<NimBLEAddress> BLE_YC01::getFoundDevices() {
+    return foundDevices;
 }
 
 BLE_YC01::BLE_YC01(NimBLEAddress const& addr, String const& name) {

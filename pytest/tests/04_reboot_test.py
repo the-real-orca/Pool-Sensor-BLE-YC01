@@ -6,7 +6,7 @@ def test_reboot_serial(workbench, slot):
     """Test if rebooting via Serial API shows the correct reason and identifies the reset reason."""
 
     # Trigger Reset via Serial
-    result = workbench.serial_write(slot=slot, data="RESET", pattern="Reset reason: Software reset", timeout=10)
+    result = workbench.serial_write(slot=slot, data="\nRESET\n", pattern="Reset reason: Software reset", timeout=10)
 
     # Wait for device to be ready
     time.sleep(1)

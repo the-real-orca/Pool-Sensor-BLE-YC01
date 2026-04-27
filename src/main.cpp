@@ -419,6 +419,15 @@ void handleSerialApi() {
   }
 }
 
+enum BLEState {
+  BLE_IDLE,
+  BLE_START_SCAN,
+  BLE_SCANNING,
+  BLE_PROCESS_RESULTS
+};
+
+static BLEState bleState = BLE_IDLE;
+
 /**
  * @brief Standard Arduino loop function.
  * 
@@ -460,113 +469,119 @@ void loop()
     diconnectedAt = 0; // reset disconnection timestamp
   }
     
-  // scan for BLE devices & read data
-  if ( (uptime - lastScan) > config.interval) { // scan and read data every x sceconds
-    // BLE
-    Serial.println("Scanning for BLE devices...");
-    digitalWrite(LED_PIN, HIGH);
-    esp_task_wdt_reset(); // reset before scan
-    auto list = BLE_YC01::scan();
-    esp_task_wdt_reset(); // reset after scan
-    Serial.println("Scan complete.");
+  // BLE State Machine
+  switch (bleState) {
+    case BLE_IDLE:
+      if ((uptime - lastScan) > config.interval) {
+        bleState = BLE_START_SCAN;
+      }
+      break;
 
-    JsonDocument doc;
-    doc["time"] = now;
-    doc["name"] = config.name;
- 
+    case BLE_START_SCAN:
+      Serial.println("Scanning for BLE devices (async)...");
+      digitalWrite(LED_PIN, HIGH);
+      if (BLE_YC01::startScan(3)) {
+        bleState = BLE_SCANNING;
+      } else {
+        DEBUG_println("Failed to start BLE scan");
+        lastScan = uptime; // Delay retry
+        bleState = BLE_IDLE;
+        digitalWrite(LED_PIN, LOW);
+      }
+      break;
 
-    for (const auto& addr : list) {
-      esp_task_wdt_reset(); // reset before each device read
-      Serial.print("Read device: ");
-      Serial.println(addr.toString().c_str());
+    case BLE_SCANNING:
+      if (!BLE_YC01::isScanning()) {
+        bleState = BLE_PROCESS_RESULTS;
+      }
+      break;
+
+    case BLE_PROCESS_RESULTS: {
+      auto list = BLE_YC01::getFoundDevices();
       
-      // read data from device if address matches or address is empty
-      if ( config.address.isEmpty() || compareBLEAddress(addr, config.address) ) {
-        BLE_YC01 device(addr, config.name);
-        sensorReadings_t readings = {0};
-        if ( device.readData() ) {
-          readings = device.getReadings();
+      JsonDocument doc;
+      doc["time"] = now;
+      doc["name"] = config.name;
+
+      bool found = false;
+      for (const auto& addr : list) {
+        esp_task_wdt_reset();
+        Serial.print("Read device: ");
+        Serial.println(addr.toString().c_str());
+        
+        if ( config.address.isEmpty() || compareBLEAddress(addr, config.address) ) {
+          BLE_YC01 device(addr, config.name);
+          sensorReadings_t readings = {0};
+          if ( device.readData() ) {
+            readings = device.getReadings();
+          }
+          
+          if ( readings.type ) {
+            Serial.println("Data decoded successfully:");
+            doc["status"] = "data read successfully";
+            doc["addr"] = device.getAddress().toString();
+            doc["sensorType"] = device.getSensorType();
+            doc["type"] = readings.type;
+            doc["pH"] = readings.pH;
+            doc["ec"] = readings.ec;
+            doc["salt"] = readings.salt;
+            doc["tds"] = readings.tds;
+            doc["orp"] = readings.orp;
+            doc["cl"] = readings.cl;
+            doc["temp"] = readings.temp;
+            doc["bat"] = readings.bat;
+            doc["bleRSSI"] = readings.rssi;
+            found = true;
+          }
+          break; 
         }
-        if ( readings.type ) {
-          Serial.println("Data decoded successfully:");
-
-          doc["status"] = "data read successfully"; // status message
-          doc["addr"] = device.getAddress().toString(); // device address
-          doc["sensorType"] = device.getSensorType();
-          doc["type"] = readings.type;
-
-          // readings
-          doc["pH"] = readings.pH;
-          doc["ec"] = readings.ec; // EC in mV
-          doc["salt"] = readings.salt; // Salt in g/L
-          doc["tds"] = readings.tds; // TDS in mg/L
-          doc["orp"] = readings.orp; // ORP in mV
-          doc["cl"] = readings.cl; // Chlorine in mg/L
-          doc["temp"] = readings.temp; // Temperature in °C
-          doc["bat"] = readings.bat; // Battery in mV
-          doc["bleRSSI"] = readings.rssi; // BLE RSSI
-
-          lastScan = uptime;
-        } else {
-          doc["status"] = "failed to read data";
-          doc["bleRSSI"] = readings.rssi; // BLE RSSI
-          doc["sensorType"] = "unknown";
-          Serial.println("Failed to read data.");
-        }
-
-        break; // exit loop after reading matching device
       }
 
-    }
-    digitalWrite(LED_PIN, LOW);
-
-    if (lastScan != uptime) {
-      if ( doc["status"].isNull() ) {
-        doc["status"] = "no matching device found"; // status message
-        Serial.println("No matching device found.");
+      if (!found) {
+        doc["status"] = list.empty() ? "no devices found" : "no matching device found";
+        doc["addr"] = config.address;
+        doc["sensorType"] = "unknown";
+        doc["type"] = 0;
+        Serial.println(doc["status"].as<String>());
       }
-      doc["addr"] = config.address;
-      doc["sensorType"] = "unknown";
-      doc["type"] = 0; // no readings available
-    }
 
-    // WiFi and MQTT information
-    doc["wifiSSID"] = isCaptive ? config.portalSSID : config.wifiSSID; // WiFi SSID
-    doc["wifiRSSI"] = WiFi.RSSI(); // WiFi RSSI
-    doc["wifiIP"] = isCaptive ? WiFi.softAPIP().toString() : WiFi.localIP().toString(); // WiFi IP address
-    doc["mqttServer"] = config.mqttServer; // MQTT server
-    doc["mqttConnected"] = mqttClient.connected();
-    doc["resetReason"] = resetReason;
+      // WiFi and MQTT information
+      doc["wifiSSID"] = isCaptive ? config.portalSSID : config.wifiSSID;
+      doc["wifiRSSI"] = WiFi.RSSI();
+      doc["wifiIP"] = isCaptive ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
+      doc["mqttServer"] = config.mqttServer;
+      doc["mqttConnected"] = mqttClient.connected();
+      doc["resetReason"] = resetReason;
 
-    serializeJson(doc, statusJsonBuffer);
+      serializeJson(doc, statusJsonBuffer);
+      DEBUG_println(statusJsonBuffer);
 
-    DEBUG_println(statusJsonBuffer);
-
-    // MQTT
-    if ( config.mqttPort && !isCaptive ) {
-      if ( !mqttClient.connected() ) {
-        DEBUG_print("connecting to MQTT-broker... ");
-        mqttClient.setServer(config.mqttServer.c_str(), config.mqttPort);
-        if ( mqttClient.connect("BLE-YC01", config.mqttUser.c_str(), config.mqttPassword.c_str()) ) {
+      // MQTT Publishing
+      if ( config.mqttPort && !isCaptive ) {
+        if ( !mqttClient.connected() ) {
+          DEBUG_print("connecting to MQTT-broker... ");
+          mqttClient.setServer(config.mqttServer.c_str(), config.mqttPort);
+          if ( mqttClient.connect("BLE-YC01", config.mqttUser.c_str(), config.mqttPassword.c_str()) ) {
+            mqttClient.loop();
+            DEBUG_println("ok");
+          } else {
+            DEBUG_print(" \nerror, rc=");
+            DEBUG_println(mqttClient.state());
+          }
+        }
+        if ( mqttClient.connected() ) {
+          mqttClient.publish(config.mqttTopic.c_str(), statusJsonBuffer);
           mqttClient.loop();
-          DEBUG_println("ok");
-        } else {
-          DEBUG_print(" \nerror, rc=");
-          DEBUG_println(mqttClient.state());
         }
       }
-      if ( mqttClient.connected() ) {
-        if ( mqttClient.publish(config.mqttTopic.c_str(), statusJsonBuffer) ) {
-          DEBUG_print("MQTT sent successfully: "); DEBUG_println(config.mqttTopic);
-        } else {
-          DEBUG_print("MQTT send failed: "); 
-        }
-        mqttClient.loop();
-      }
-    }
 
+      lastScan = uptime;
+      digitalWrite(LED_PIN, LOW);
+      bleState = BLE_IDLE;
+      break;
+    }
   }
 
   // wait
-  delay(100);
+  delay(10); // Reduced delay for better responsiveness
 }
