@@ -53,8 +53,12 @@ def test_startup_init(workbench):
 
     # reset DUT
     workbench.serial_reset(slot=slot)
+
+    # Give esp time to restart
+    time.sleep(3)
+
     # analyse serial output
-    result = workbench.serial_output(slot=slot, lines=150)
+    result = workbench.serial_output(slot=slot)
     full_output = "\n".join([line.get("text", "") for line in result.get("lines", [])])
     
     assert "application starting" in full_output, "Did not detect 'application starting' in output"

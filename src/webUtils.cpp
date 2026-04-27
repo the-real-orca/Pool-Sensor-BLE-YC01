@@ -8,6 +8,7 @@
 #include <Ticker.h>
 
 #include <WiFi.h>
+#include <ArduinoJson.h>
 #include "webUtils.h"
 #include "config.h"
 
@@ -341,10 +342,24 @@ void webServerInit(AsyncWebServer &webServer, bool isCaptive)
                 if ( index != 0 || len < 2 )
                     return request->send(500, "text/plain", "BAD CONFIG");
 
-                File file = LittleFS.open("/config.json", "w");
-                file.write(data, len);
-                file.close();
-                requestReboot("Config saved");
+                JsonDocument doc;
+                DeserializationError error = deserializeJson(doc, data, len);
+                if (!error) {
+                    File file = LittleFS.open("/config.json", "w");
+                    if (file) {
+                        // Only update if not masked
+                        if (doc["wifiPassword"] == "***") doc["wifiPassword"] = config.wifiPassword;
+                        if (doc["mqttPassword"] == "***") doc["mqttPassword"] = config.mqttPassword;
+                        
+                        serializeJson(doc, file);
+                        file.close();
+                        requestReboot("Config saved via HTTP PUT");
+                    } else {
+                        request->send(500, "text/plain", "Failed to open config file");
+                    }
+                } else {
+                    request->send(400, "text/plain", "Invalid JSON");
+                }
             });
 
     webServer.on("/wifiList", HTTP_GET, [](AsyncWebServerRequest *request)

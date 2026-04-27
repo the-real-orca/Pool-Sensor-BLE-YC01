@@ -90,6 +90,7 @@ The system implements multiple layers of security to protect sensitive configura
         - `config.json` PUT requests are ignored.
     - **Enabled (Debug):**
         - All features and logs are fully accessible.
+        - `config.json` PUT and `SET_CONFIG` are allowed, but passwords are protected from being overwritten by masks (`***`).
 - **Startup Protection:** The system issues an explicit warning message via Serial console on startup, indicating whether the device is running in a secured or exposed state.
 - **Web UI Warning:** The configuration web interface displays a prominent security warning if `DEBUG_SECURITY` is active.
 

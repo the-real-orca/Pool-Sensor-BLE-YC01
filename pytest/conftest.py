@@ -82,11 +82,10 @@ def wifi_connection(workbench, slot, wifi_network):
     ssid = wifi_network["ssid"]
     password = wifi_network["password"]
     
-    print(f"Configuring ESP to connect to {ssid}...")
+    #print(f"Configuring ESP to connect to {ssid}...")
     config = {"wifiSSID": ssid, "wifiPassword": password}
     workbench.serial_write(slot=slot, data=f"SET_CONFIG {json.dumps(config)}\n", pattern="Config saved successfully.", timeout=10)
     
-    print("Waiting for connection...")
     station = workbench.wait_for_station(timeout=45)
     assert station.get("ip"), "Could not get ESP IP address"
     return station

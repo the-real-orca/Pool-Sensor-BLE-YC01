@@ -17,8 +17,9 @@ def test_http_get_password_masked(workbench, slot, wifi_connection):
     assert config.get("mqttPassword") == "***", "mqttPassword should be masked"
 
 def test_serial_get_config_password_masked(workbench, slot):
-    # Give workbench time to startup
-    time.sleep(1)
+
+    # wait between tests for serial communication
+    time.sleep(3)
 
     # Use serial_write with the correct pattern to capture the JSON
     # GET_CONFIG prints the configuration, ending with a newline.

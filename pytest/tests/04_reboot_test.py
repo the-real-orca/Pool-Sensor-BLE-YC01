@@ -5,6 +5,9 @@ import time
 def test_reboot_serial(workbench, slot):
     """Test if rebooting via Serial API shows the correct reason and identifies the reset reason."""
 
+    # wait between tests for serial communication
+    time.sleep(3)
+
     # Trigger Reset via Serial
     result = workbench.serial_write(slot=slot, data="\nRESET\n", pattern="Reset reason: Software reset", timeout=10)
 
@@ -24,11 +27,13 @@ def test_reboot_hard(workbench, slot):
 
     # Trigger Reset via Workbench
     workbench.serial_reset(slot=slot)
-    # analyse serial output
-    result = workbench.serial_output(slot=slot)
 
     # Wait for device to be ready
     time.sleep(1)
+
+    # analyse serial output
+    result = workbench.serial_output(slot=slot)
+
 
     full_output = "\n".join([line.get("test", line.get("text", "")) for line in result.get("lines", [])])
 
@@ -46,8 +51,8 @@ def test_reboot_http(workbench, slot, wifi_connection):
     resp = workbench.http_get(f"http://{esp_ip}/cmd?param=reboot&value=1", timeout=10)
     assert resp.status_code == 200, f"HTTP command failed with status {resp.status_code}"
 
+    result = workbench.serial_monitor(slot=slot, pattern="Reset reason: Software reset", timeout=15)
     full_output = "\n".join(result.get("output", []))
-    assert "Reboot requested. Reason: Serial RESET" in full_output
     assert "application starting" in full_output
     assert "Reset reason: Software reset" in full_output
 
