@@ -83,9 +83,8 @@ def wifi_connection(workbench, slot, wifi_network):
     password = wifi_network["password"]
     
     print(f"Configuring ESP to connect to {ssid}...")
-    workbench.serial_write(slot=slot, data="SET_CONFIG", pattern="Ready to receive config.json", timeout=10)
     config = {"wifiSSID": ssid, "wifiPassword": password}
-    workbench.serial_write(slot=slot, data=json.dumps(config) + "\n", timeout=10)
+    workbench.serial_write(slot=slot, data=f"SET_CONFIG {json.dumps(config)}", pattern="Config saved successfully.", timeout=10)
     
     print("Waiting for connection...")
     station = workbench.wait_for_station(timeout=45)

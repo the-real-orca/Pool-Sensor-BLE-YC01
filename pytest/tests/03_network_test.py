@@ -15,22 +15,17 @@ def test_network_wifi_lifecycle(workbench, slot, wifi_network):
     
     print(f"--- Step 1: Configuring ESP to connect to {ssid} ---")
     
-    # 1.1 Enter SET_CONFIG mode
-    result = workbench.serial_write(slot=slot, data="SET_CONFIG", pattern="Ready to receive config.json", timeout=10)
-    assert result.get("matched"), "ESP did not enter SET_CONFIG mode"
-    
-    # 1.2 Send the new configuration (including newline)
-    # The ESP reboots automatically after saving
+    # 1.1 Send SET_CONFIG command with JSON
     config = {
         "wifiSSID": ssid,
         "wifiPassword": password,
         "wifiTimeout": 30 # Short timeout for faster testing
     }
-    config_json = json.dumps(config) + "\n"
+    config_json = json.dumps(config)
     
-    print("Sending config and waiting for reboot...")
-    # We wait for 'application starting' to confirm reboot
-    result = workbench.serial_write(slot=slot, data=config_json)
+    # Send SET_CONFIG command with JSON
+    result = workbench.serial_write(slot=slot, data=f"SET_CONFIG {config_json}", pattern="Config saved successfully.", timeout=20)
+    assert result.get("matched"), "ESP did not save config via SET_CONFIG"
     
     # 2. Wait for the ESP to connect to the AP
     print(f"Waiting for ESP to connect to {ssid}...")

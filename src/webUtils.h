@@ -32,9 +32,4 @@ void webServerInit(AsyncWebServer &webServer, bool isCaptive = false);
  */
 void webUtilsLoop();
 
-/**
- * @brief Centralized reboot function with delay and cleanup.
- * @param reason String describing the reason for reboot
- * @param delayMs Delay in milliseconds before restart (default 2000)
- */
-void requestReboot(String reason, uint32_t delayMs = 2000);
+

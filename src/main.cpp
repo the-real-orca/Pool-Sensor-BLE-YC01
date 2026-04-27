@@ -71,6 +71,7 @@ PubSubClient mqttClient;
 void requestReboot(String reason, uint32_t delayMs) {
   Serial.print("Reboot requested. Reason: ");
   Serial.println(reason);
+  Serial.flush();
   
   // MQTT cleanup
   if (mqttClient.connected()) {
@@ -323,62 +324,97 @@ void setup()
  * - STATUS: Prints the current status JSON to Serial.
  * - SET_CONFIG: Receives a new config.json via Serial.
  */
+/**
+ * @brief Handles serial commands for the Serial API.
+ * 
+ * Commands:
+ * - RESET: Restarts the ESP32.
+ * - SCAN: Forces a re-scan for BLE devices.
+ * - READ: Forces an immediate BLE read.
+ * - STATUS: Prints the current status JSON to Serial.
+ * - SET_CONFIG: Receives a new config.json via Serial.
+ */
 void handleSerialApi() {
-  if (Serial.available()) {
-    String cmd = Serial.readStringUntil('\n');
-    cmd.trim();
-    cmd.toUpperCase();
+  static String serialBuffer = "";
+  
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c == '\n') {
+      String line = serialBuffer;
+      serialBuffer = ""; // reset buffer
+      line.trim();
+      if (line.length() == 0) continue;
 
-    if (cmd == "RESET") {
-      requestReboot("Serial RESET");
-    } else if (cmd == "OFFLINE") {
-      Serial.println("Offline Mode");
-      WiFi.mode(WIFI_OFF);
-      config.offlineMode = true;
-    } else if (cmd == "SCAN") {
-      Serial.println("Forcing re-scan...");
-      config.address = "";
-      lastScan = millis()/1000 - config.interval;
-    } else if (cmd == "READ") {
-      Serial.println("Forcing immediate read...");
-      lastScan = millis()/1000 - config.interval;
-    } else if (cmd == "STATUS") {
-      Serial.println(statusJsonBuffer);
-    } else if (cmd == "SET_CONFIG") {
-      Serial.println("Ready to receive config.json. Send JSON and end with newline.");
-      while (!Serial.available()) {
-        esp_task_wdt_reset();
-        delay(10);
-      }
-      String json = Serial.readStringUntil('\n');
-      JsonDocument doc;
-      DeserializationError error = deserializeJson(doc, json);
-      if (!error) {
-        File file = LittleFS.open("/config.json", "w");
-        if (file) {
-          // Only update if not masked
-          if (doc["wifiPassword"] == "***") doc["wifiPassword"] = config.wifiPassword;
-          if (doc["mqttPassword"] == "***") doc["mqttPassword"] = config.mqttPassword;
-          saveConfig(); // Assume saveConfig updates global config object
-          serializeJson(doc, file);
-          file.close();
-          requestReboot("Serial SET_CONFIG");
+      int spaceIndex = line.indexOf(' ');
+      String cmd = (spaceIndex == -1) ? line : line.substring(0, spaceIndex);
+      String arg = (spaceIndex == -1) ? "" : line.substring(spaceIndex + 1);
+      cmd.trim(); cmd.toUpperCase();
+      arg.trim();
+
+      if (cmd == "RESET") {
+        requestReboot("Serial RESET");
+        Serial.flush();
+      } else if (cmd == "OFFLINE") {
+        Serial.println("Offline Mode\n");
+        WiFi.mode(WIFI_OFF);
+        config.offlineMode = true;
+      } else if (cmd == "SCAN") {
+        Serial.println("Forcing re-scan...\n");
+        config.address = "";
+        lastScan = millis()/1000 - config.interval;
+      } else if (cmd == "READ") {
+        Serial.println("Forcing immediate read...\n");
+        lastScan = millis()/1000 - config.interval;
+      } else if (cmd == "STATUS") {
+        Serial.println(statusJsonBuffer);
+      } else if (cmd == "SET_CONFIG") {
+        if (arg.length() == 0) {
+          Serial.println("Usage: SET_CONFIG <json>");
         } else {
-          Serial.println("Failed to open config file for writing.");
+          JsonDocument doc;
+          DeserializationError error = deserializeJson(doc, arg);
+          if (!error) {
+            File file = LittleFS.open("/config.json", "w");
+            if (file) {
+              // Only update passwords if not masked
+              if (doc["wifiPassword"] == "***") doc["wifiPassword"] = config.wifiPassword;
+              if (doc["mqttPassword"] == "***") doc["mqttPassword"] = config.mqttPassword;
+              
+              if (serializeJson(doc, file) > 0) {
+                file.close();
+                Serial.println("Config saved successfully.\n");
+                Serial.flush();
+                requestReboot("Serial SET_CONFIG");
+              } else {
+                Serial.println("Failed to write config to file.");
+                file.close();
+              }
+            } else {
+              Serial.println("Failed to open config file for writing.");
+            }
+          } else {
+            Serial.print("JSON deserialization error: ");
+            Serial.println(error.c_str());
+          }
         }
+      } else if (cmd == "GET_CONFIG") {
+        Serial.println("Current configuration:");
+        // Serialize config to JSON and print to Serial
+        serializeConfig(Serial, true);
+        Serial.println(); // Add a newline for better readability
       } else {
-        Serial.print("JSON deserialization error: ");
-        Serial.println(error.c_str());
+        Serial.print("Unknown command: ");
+        Serial.println(cmd);
+        Serial.println("Available commands: RESET, OFFLINE, SCAN, READ, STATUS, SET_CONFIG, GET_CONFIG\n");
       }
-    } else if (cmd == "GET_CONFIG") {
-      Serial.println("Current configuration:");
-      // Serialize config to JSON and print to Serial
-      serializeConfig(Serial, true);
-      Serial.println(); // Add a newline for better readability
-    } else if (cmd != "") {
-      Serial.print("Unknown command: ");
-      Serial.println(cmd);
-      Serial.println("Available commands: RESET, OFFLINE, SCAN, READ, STATUS, SET_CONFIG, GET_CONFIG");
+      Serial.flush();
+    } else if (c != '\r') {
+      serialBuffer += c;
+      // Safety: limit buffer size to prevent memory exhaustion
+      if (serialBuffer.length() > 2048) {
+        Serial.println("Error: Serial buffer overflow\n"); Serial.flush();
+        serialBuffer = "";
+      }
     }
   }
 }

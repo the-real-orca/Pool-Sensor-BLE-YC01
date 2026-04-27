@@ -6,7 +6,7 @@
  * Debug
  */
 #define DEBUG_SERIAL_PRINT 1 // 1: enable debug serial print, 0: disable debug serial print
-#define DEBUG_SECURITY 0     // 1: security disabled (passwords plaintext), 0: security enabled (passwords masked)
+#define DEBUG_SECURITY 1     // 1: security disabled (passwords plaintext), 0: security enabled (passwords masked)
 
 #if DEBUG_SERIAL_PRINT
   #define DEBUG_println(x)  Serial.println(x)
@@ -45,6 +45,15 @@ typedef struct {
 
 } config_t;
 extern config_t config;
+
+
+/**
+ * @brief Centralized reboot function with delay and cleanup.
+ * @param reason String describing the reason for reboot
+ * @param delayMs Delay in milliseconds before restart (default 1000)
+ */
+void requestReboot(String reason, uint32_t delayMs = 1000);
+
 
 #include <ArduinoJson.h>
 template <

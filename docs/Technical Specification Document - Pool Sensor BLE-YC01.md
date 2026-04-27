@@ -102,14 +102,13 @@ The ESP32 provides a Serial API for configuration and control via the serial por
 | **SCAN** | Clears the stored BLE address and forces a re-scan. |
 | **READ** | Forces an immediate BLE read cycle. |
 | **STATUS** | Prints the current status JSON to the serial output. |
-| **SET_CONFIG** | Enters configuration mode to receive a new `config.json` via serial. (Blocked if `DEBUG_SECURITY` is 0). |
+| **SET_CONFIG** | Saves a new configuration provided as a JSON argument. (Blocked if `DEBUG_SECURITY` is 0). |
 | **GET_CONFIG** | Returns the current configuration. WiFi and MQTT passwords are masked if `DEBUG_SECURITY` is 0. |
 
 #### 2.6.1 SET_CONFIG command usage
-1. Send `SET_CONFIG` via serial.
-2. The device responds with `Ready to receive config.json. Send JSON and end with newline.`
-3. Send the complete JSON content as a single line.
-4. The device validates the JSON, saves it to LittleFS, and reboots.
+1. Send `SET_CONFIG <json>` via serial (e.g., `SET_CONFIG {"wifiSSID": "mySSID", "wifiPassword": "myPassword"}`).
+2. The device validates the JSON, saves it to LittleFS, and reboots.
+3. If the JSON is valid, it responds with `Config saved successfully.` before rebooting.
 
 
 ## 3. Build & Deployment

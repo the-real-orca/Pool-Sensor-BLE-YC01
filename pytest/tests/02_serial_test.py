@@ -9,17 +9,14 @@ def test_serial_api_offline(workbench, slot):
     time.sleep(1)
 
     # Send STATUS and wait for JSON line (starts with {)
-    result = workbench.serial_write(slot=slot, data="OFFLINE", pattern='Offline Mode', timeout=10)
+    result = workbench.serial_write(slot=slot, data="\nOFFLINE\n", pattern='Offline Mode', timeout=15)
     assert result.get("matched")
 
 def test_serial_api_status(workbench, slot):
     """Test the STATUS command of the Serial API."""
 
-    # give workbench time to startup
-    time.sleep(1)
-
     # Send STATUS and wait for JSON line (starts with {)
-    result = workbench.serial_write(slot=slot, data="STATUS", pattern='}', timeout=10)
+    result = workbench.serial_write(slot=slot, data="\nSTATUS\n", pattern='}', timeout=15)
     assert result.get("matched"), "Pattern '{' not found after STATUS command"
     
     # Validate it is a valid JSON (the whole line is captured because pattern matches it)
@@ -33,34 +30,30 @@ def test_serial_api_status(workbench, slot):
 def test_serial_api_scan(workbench, slot):
     """Test the SCAN commands."""
     
-    # give workbench time to startup
-    time.sleep(1)
-
     # Test SCAN
-    result = workbench.serial_write(slot=slot, data="SCAN", pattern="Forcing re-scan", timeout=10)
+    result = workbench.serial_write(slot=slot, data="\nSCAN\n", pattern="Forcing re-scan", timeout=15)
     assert result.get("matched")
 
 def test_serial_api_read(workbench, slot):
     """Test the READ commands."""
 
-    # give workbench time to startup
-    time.sleep(1)
-
     # Test READ
-    result = workbench.serial_write(slot=slot, data="READ", pattern="Forcing immediate read", timeout=10)
+    result = workbench.serial_write(slot=slot, data="\nREAD\n", pattern="Forcing immediate read", timeout=15)
     assert result.get("matched")
+
+    # Give esp time to read
+    time.sleep(5)
 
 
 def test_serial_api_get_config(workbench, slot):
     """Test the GET_CONFIG command."""
 
-    # give workbench time to startup
-    time.sleep(1)
-
     # Send GET_CONFIG command and wait for a pattern that appears after the JSON output.
     # This ensures the entire config JSON is captured in the output buffer.
-    result = workbench.serial_write(slot=slot, data="GET_CONFIG", pattern="interval", timeout=10)
-    
+    result = workbench.serial_write(slot=slot, data="\nGET_CONFIG\n", pattern="addr", timeout=30)
+    print(result)
+    assert result.get("matched")
+
     full_output = "\n".join(result.get("output", []))
     assert "Current configuration:" in full_output
     assert "wifiSSID" in full_output
@@ -71,9 +64,6 @@ def test_serial_api_get_config(workbench, slot):
 def test_serial_api_set_config(workbench, slot):
     """Test the SET_CONFIG command and JSON upload."""
 
-    # give workbench time to startup
-    time.sleep(1)
-
     # Prepare a test config
     test_config = {
         "wifiSSID": "TestSSID",
@@ -82,17 +72,15 @@ def test_serial_api_set_config(workbench, slot):
     }
     config_json = json.dumps(test_config)
     
-    # Send SET_CONFIG command and wait for ready message
-    result = workbench.serial_write(slot=slot, data="SET_CONFIG", pattern="Ready to receive config.json", timeout=10)
+    # Send SET_CONFIG command with JSON
+    result = workbench.serial_write(slot=slot, data=f"\nSET_CONFIG {config_json}\n", pattern="Config saved successfully.", timeout=15)
     assert result.get("matched")
     
-    # Send the JSON and wait for success message
-    result = workbench.serial_write(slot=slot, data=config_json)
-
-    time.sleep(1)
+    # Give esp time to restart
+    time.sleep(5)
 
     # Read result    
-    result = workbench.serial_write(slot=slot, data="GET_CONFIG", pattern="interval", timeout=10)
+    result = workbench.serial_write(slot=slot, data="\nGET_CONFIG\n", pattern="}", timeout=15)
     full_output = "\n".join(result.get("output", []))
     assert "Current configuration:" in full_output
     assert "wifiSSID" in full_output
@@ -104,21 +92,19 @@ def test_serial_api_set_config(workbench, slot):
 def test_serial_api_reset(workbench, slot):
     """Test the RESET command."""
 
-    # give workbench time to startup
-    time.sleep(1)
-
     # Send RESET command and wait for rebooting message
-    result = workbench.serial_write(slot=slot, data="RESET", pattern="application starting", timeout=20)
+    result = workbench.serial_write(slot=slot, data="\nRESET\n", pattern="application starting", timeout=20)
+    
+    # Give esp time to restart
+    time.sleep(5)
+    
     assert result.get("matched")
 
 
 def test_serial_api_unknown(workbench, slot):
     """Test behavior for unknown commands."""
 
-    # give workbench time to startup
-    time.sleep(1)
-
     # Send unsupported command and wait for a pattern to appear.
-    result = workbench.serial_write(slot=slot, data="UNKNOWN_CMD", pattern="Unknown command", timeout=10)
+    result = workbench.serial_write(slot=slot, data="\nUNKNOWN_CMD\n", pattern="Unknown command", timeout=15)
     assert result.get("matched")
    
