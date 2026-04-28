@@ -1,6 +1,7 @@
 {
     "interval": 900,    
     "name": "Device Name",
+    "bleAddress": "",
     "wifiSSID": "SSID",
     "wifiPassword": "",
     "wifiTimeout": 600,

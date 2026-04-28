@@ -120,7 +120,7 @@ void handleCmd(AsyncWebServerRequest *request)
     requestReboot("Web Command"); 
   } else if (param == "scan" && val) {
     // re-scan
-    config.address = ""; // reset address to force re-scan
+    config.bleAddress = ""; // reset address to force re-scan
     lastScan = -config.interval; // reset last scan time
   } else if (param == "read" && val) {
     lastScan = -config.interval; // reset last scan time
@@ -155,7 +155,7 @@ void readConfig()
   config.mqttPassword = doc["mqttPassword"] | "";
   config.interval = doc["interval"] | 900;
   config.name = doc["name"] | "";
-  config.address = doc["addr"] | "";
+  config.bleAddress = doc["bleAddress"] | "";
   file.close();
 
 
@@ -182,7 +182,7 @@ void readConfig()
   #endif  
   DEBUG_print("  interval: "); DEBUG_println(config.interval);
   DEBUG_print("  name: "); DEBUG_println(config.name);
-  DEBUG_print("  address: "); DEBUG_println(config.address);
+  DEBUG_print("  address: "); DEBUG_println(config.bleAddress);
   DEBUG_println("");
 }
 
@@ -207,7 +207,7 @@ void saveConfig() {
   doc["mqttPassword"]   = config.mqttPassword;
   doc["interval"]       = config.interval;
   doc["name"]           = config.name;
-  doc["addr"]           = config.address;
+  doc["bleAddress"]           = config.bleAddress;
 
   // write config file
   File file = LittleFS.open("/config.json", "w");
@@ -324,16 +324,6 @@ void setup()
  * - STATUS: Prints the current status JSON to Serial.
  * - SET_CONFIG: Receives a new config.json via Serial.
  */
-/**
- * @brief Handles serial commands for the Serial API.
- * 
- * Commands:
- * - RESET: Restarts the ESP32.
- * - SCAN: Forces a re-scan for BLE devices.
- * - READ: Forces an immediate BLE read.
- * - STATUS: Prints the current status JSON to Serial.
- * - SET_CONFIG: Receives a new config.json via Serial.
- */
 void handleSerialApi() {
   static String serialBuffer = "";
   
@@ -360,7 +350,7 @@ void handleSerialApi() {
         config.offlineMode = true;
       } else if (cmd == "SCAN") {
         Serial.println("Forcing re-scan...\n");
-        config.address = "";
+        config.bleAddress = "";
         lastScan = millis()/1000 - config.interval;
       } else if (cmd == "READ") {
         Serial.println("Forcing immediate read...\n");
@@ -509,7 +499,7 @@ void loop()
         Serial.print("Read device: ");
         Serial.println(addr.toString().c_str());
         
-        if ( config.address.isEmpty() || compareBLEAddress(addr, config.address) ) {
+        if ( config.bleAddress.isEmpty() || compareBLEAddress(addr, config.bleAddress) ) {
           BLE_YC01 device(addr, config.name);
           sensorReadings_t readings = {0};
           if ( device.readData() ) {
@@ -519,7 +509,7 @@ void loop()
           if ( readings.type ) {
             Serial.println("Data decoded successfully:");
             doc["status"] = "data read successfully";
-            doc["addr"] = device.getAddress().toString();
+            doc["bleAddress"] = device.getAddress().toString();
             doc["sensorType"] = device.getSensorType();
             doc["type"] = readings.type;
             doc["pH"] = readings.pH;
@@ -539,7 +529,7 @@ void loop()
 
       if (!found) {
         doc["status"] = list.empty() ? "no devices found" : "no matching device found";
-        doc["addr"] = config.address;
+        doc["bleAddress"] = config.bleAddress;
         doc["sensorType"] = "unknown";
         doc["type"] = 0;
         Serial.println(doc["status"].as<String>());

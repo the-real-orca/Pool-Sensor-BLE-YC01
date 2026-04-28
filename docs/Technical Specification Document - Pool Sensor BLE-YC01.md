@@ -132,7 +132,7 @@ This endpoint provides the current operational status of the device and the late
         "time": 1678886400,
         "name": "PoolSensor1",
         "status": "data read successfully",
-        "addr": "AA:BB:CC:DD:EE:FF",
+        "bleAddress": "AA:BB:CC:DD:EE:FF",
         "sensorType": "BLE-YC01",
         "type": 1,
         "pH": 7.2,

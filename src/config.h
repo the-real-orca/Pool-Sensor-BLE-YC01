@@ -40,8 +40,7 @@ typedef struct {
 // BLE-YC01 configurations
   uint16_t interval;
   String name;
-  String address;
-  // TODO: add more configuration parameters as needed
+  String bleAddress;
 
 } config_t;
 extern config_t config;
@@ -92,7 +91,7 @@ void serializeConfig(TDestination& destination, bool pretty = false)
     #endif
 
     // BLE
-    doc["addr"]           = config.address;
+    doc["bleAddress"]     = config.bleAddress;
 
 
     if (pretty)

@@ -46,7 +46,6 @@ String formatBytes(size_t bytes)
 
 String getContentType(String filename)
 {
-    // TODO  if (server.hasArg("download")) return "application/octet-stream";
     if (filename.endsWith(".htm"))
         return "text/html";
     else if (filename.endsWith(".html"))

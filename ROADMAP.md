@@ -17,10 +17,11 @@ This document consolidates the project's tasks and roadmap, providing a prioriti
 - [x] **BLE Scan:** converted to asynchronous, non-blocking state machine
 - [x] **Technical Specification (TSD):** Expand on the BLE decoding algorithm and the internal state machine, document status LED meaning.
 - [x] **API Documentation:** Document the `/cmd` and `/status` endpoints.
-- [ ] **Config Cleanup:** Finalize `config_t` structure and remove legacy TODOs., rename config.address -> config.bleAddress
+- [x] **Config Cleanup:** Finalize `config_t` structure and remove legacy TODOs., rename config.address -> config.bleAddress
 
 ## Phase 2: Tests (Medium Priority)
 - [ ] **Unit Tests:** Implement tests Captive Portal, WiFi AP connection and Web site.
+- [ ] **MQTT Tests:** Implement tests for MQTT connection, status send, etc.
 
 ## Phase 3: Feature Enhancement & Connectivity (Medium Priority)
 - [ ] **Enhance MQTT Robustness:** Improve MQTT connection handling and error reporting in the web status.
