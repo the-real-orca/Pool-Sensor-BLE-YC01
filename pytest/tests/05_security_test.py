@@ -23,12 +23,11 @@ def test_serial_get_config_password_masked(workbench, slot):
 
     # Use serial_write with the correct pattern to capture the JSON
     # GET_CONFIG prints the configuration, ending with a newline.
-    result = workbench.serial_write(slot=slot, data="\nGET_CONFIG\n", pattern="interval", timeout=10)
+    result = workbench.serial_write(slot=slot, data="\nGET_CONFIG\n", pattern="}", timeout=10)
 
     # Extract the full output
     output_lines = result.get("output", [])
     full_output = "\n".join(output_lines)
-    print (full_output)
 
     # For now, check for the mask in the string output
     assert "***" in full_output, "Passwords should be masked in Serial output"

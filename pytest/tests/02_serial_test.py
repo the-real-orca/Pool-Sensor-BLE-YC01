@@ -62,7 +62,7 @@ def test_serial_api_get_config(workbench, slot):
 
     # Send GET_CONFIG command and wait for a pattern that appears after the JSON output.
     # This ensures the entire config JSON is captured in the output buffer.
-    result = workbench.serial_write(slot=slot, data="\nGET_CONFIG\n", pattern="addr", timeout=15)
+    result = workbench.serial_write(slot=slot, data="\nGET_CONFIG\n", pattern="}", timeout=15)
     assert result.get("matched")
 
     full_output = "\n".join(result.get("output", []))

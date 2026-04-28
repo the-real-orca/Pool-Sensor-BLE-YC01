@@ -26,17 +26,9 @@ def test_reboot_hard(workbench, slot):
     """Test if rebooting via workbench API shows the correct reason and identifies the reset reason."""
 
     # Trigger Reset via Workbench
-    workbench.serial_reset(slot=slot)
+    result = workbench.serial_reset(slot=slot)
 
-    # Wait for device to be ready
-    time.sleep(1)
-
-    # analyse serial output
-    result = workbench.serial_output(slot=slot)
-
-
-    full_output = "\n".join([line.get("test", line.get("text", "")) for line in result.get("lines", [])])
-
+    full_output = "\n".join(result.get("output", []))
     assert "application starting" in full_output
     assert "Reset reason: Power-on" in full_output
 

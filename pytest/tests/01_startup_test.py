@@ -51,14 +51,8 @@ def test_startup_init(workbench):
     assert dev is not None, "No DUT found"
     slot = dev.get("label", "")
 
-    # reset DUT
-    workbench.serial_reset(slot=slot)
+    # reset ESP
+    result = workbench.serial_reset(slot=slot)
 
-    # Give esp time to restart
-    time.sleep(3)
-
-    # analyse serial output
-    result = workbench.serial_output(slot=slot)
-    full_output = "\n".join([line.get("text", "") for line in result.get("lines", [])])
-    
-    assert "application starting" in full_output, "Did not detect 'application starting' in output"
+    full_output = "\n".join(result.get("output", []))
+    assert "application starting" in full_output
