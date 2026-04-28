@@ -15,8 +15,8 @@ This document consolidates the project's tasks and roadmap, providing a prioriti
         -> serial commands RESET, SCAN, READ, STATUS, SET_CONFIG, GET_CONFIG implemented
         -> refactored to non-blocking with internal buffer and direct JSON argument
 - [x] **BLE Scan:** converted to asynchronous, non-blocking state machine
-- [x] **Technical Specification (TSD):** Expand on the internal state machine. (BLE decoding documentation still pending).
-- [ ] **API Documentation:** Document the `/cmd` and `/status` endpoints.
+- [x] **Technical Specification (TSD):** Expand on the BLE decoding algorithm and the internal state machine, document status LED meaning.
+- [x] **API Documentation:** Document the `/cmd` and `/status` endpoints.
 - [ ] **Config Cleanup:** Finalize `config_t` structure and remove legacy TODOs., rename config.address -> config.bleAddress
 
 ## Phase 2: Tests (Medium Priority)
