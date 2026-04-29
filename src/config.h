@@ -29,7 +29,6 @@ typedef struct {
   String wifiSSID;
   String wifiPassword;
   uint16_t wifiTimeout;
-  bool offlineMode;
 // MQTT configurations
   String mqttServer;
   uint16_t mqttPort;
@@ -76,7 +75,6 @@ void serializeConfig(TDestination& destination, bool pretty = false)
     doc["portalSSID"]     = config.portalSSID;
     doc["portalPassword"] = config.portalPassword;
     doc["portalTimeout"]  = config.portalTimeout;
-    doc["offlineMode"]    = config.offlineMode;
     
     // MQTT
     doc["mqttServer"]     = config.mqttServer;

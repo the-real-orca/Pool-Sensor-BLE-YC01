@@ -48,9 +48,10 @@ String getResetReasonName(esp_reset_reason_t reason) {
 }
 
 // wifi
-static bool isCaptive = false;
-bool isOffline = false;
+bool isCaptive = false;
+bool isStandby = false;
 static uint32_t diconnectedAt = 0; // timestamp when the device was disconnected from WiFi
+static uint32_t lastWifiRetry = 0; // timestamp for periodic WiFi reconnection attempts
 
 // web server
 AsyncWebServer webServer(80);
@@ -143,7 +144,6 @@ void readConfig()
   config.wifiSSID = doc["wifiSSID"] | "SSID";
   config.wifiPassword = doc["wifiPassword"] | "";
   config.wifiTimeout = doc["wifiTimeout"] | 600;
-  config.offlineMode = doc["offlineMode"] | false;
   config.portalSSID = doc["portalSSID"] | "ESP32-Portal";
   config.portalPassword = doc["portalPassword"] | "";
   config.portalTimeout = doc["portalTimeout"] | 600;
@@ -345,9 +345,12 @@ void handleSerialApi() {
         requestReboot("Serial RESET");
         Serial.flush();
       } else if (cmd == "OFFLINE") {
-        Serial.println("Offline Mode\n");
+        Serial.println("Entering Standby Mode (Offline)\n");
+        WiFi.disconnect();
+        delay(50);
         WiFi.mode(WIFI_OFF);
-        config.offlineMode = true;
+        isStandby = true;
+        lastWifiRetry = millis()/1000;
       } else if (cmd == "SCAN") {
         Serial.println("Forcing re-scan...\n");
         config.bleAddress = "";
@@ -440,23 +443,38 @@ void loop()
   mqttLoop();
   webUtilsLoop();
 
-  if ( !config.offlineMode && !isCaptive && !WiFi.isConnected()) {
-    if ( !diconnectedAt ) {
-      diconnectedAt = uptime; // set disconnection timestamp
-      DEBUG_println("WiFi disconnected, waiting for reconnection...");
-    } else {
-      // restart if disconnected from WiFi for more than wifiTimeout seconds ... starts captive portal or reconnect to WiFi
-      if ( (uptime - diconnectedAt) > config.wifiTimeout ) {
-        DEBUG_println("restarting due to WiFi disconnection timeout");
-        WiFi.disconnect(true, true);
-        delay(50);
-        WiFi.mode(WIFI_OFF);
-        delay(500);
-        requestReboot("WiFi Timeout");
+  // Handle WiFi and Standby
+  if ( !isCaptive ) {
+    if ( isStandby ) {
+      // Periodic WiFi reconnection retry in standby mode
+      if ( (uptime - lastWifiRetry) > config.wifiTimeout ) {
+        DEBUG_println("Standby: attempting WiFi reconnection retry...");
+        WiFi.begin(config.wifiSSID.c_str(), config.wifiPassword.c_str());
+        lastWifiRetry = uptime;
       }
+      if ( WiFi.isConnected() ) {
+        DEBUG_println("Standby: WiFi reconnected!");
+        isStandby = false;
+        diconnectedAt = 0;
+      }
+    } else if ( !WiFi.isConnected() ) {
+      if ( !diconnectedAt ) {
+        diconnectedAt = uptime; // set disconnection timestamp
+        DEBUG_println("WiFi disconnected, waiting for reconnection...");
+      } else {
+        // enter standby if disconnected from WiFi for more than wifiTimeout seconds
+        if ( (uptime - diconnectedAt) > config.wifiTimeout ) {
+          DEBUG_println("entering standby mode due to WiFi disconnection timeout");
+          WiFi.disconnect();
+          delay(50);
+          WiFi.mode(WIFI_OFF);
+          isStandby = true;
+          lastWifiRetry = uptime;
+        }
+      }
+    } else {
+      diconnectedAt = 0; // reset disconnection timestamp
     }
-  } else {
-    diconnectedAt = 0; // reset disconnection timestamp
   }
     
   // BLE State Machine
@@ -536,11 +554,12 @@ void loop()
       }
 
       // WiFi and MQTT information
-      doc["wifiSSID"] = isCaptive ? config.portalSSID : config.wifiSSID;
-      doc["wifiRSSI"] = WiFi.RSSI();
-      doc["wifiIP"] = isCaptive ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
+      doc["wifiSSID"] = isCaptive ? config.portalSSID : (isStandby ? "Standby (Offline)" : config.wifiSSID);
+      doc["wifiRSSI"] = (isCaptive || isStandby) ? 0 : WiFi.RSSI();
+      doc["wifiIP"] = isCaptive ? WiFi.softAPIP().toString() : (isStandby ? "0.0.0.0" : WiFi.localIP().toString());
       doc["mqttServer"] = config.mqttServer;
       doc["mqttConnected"] = mqttClient.connected();
+      doc["isStandby"] = isStandby;
       doc["resetReason"] = resetReason;
 
       serializeJson(doc, statusJsonBuffer);

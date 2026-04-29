@@ -19,6 +19,8 @@ unsigned long timestamp = 0;
 unsigned long lastWifiUpdate = 0;
 
 extern void handleSerialApi();
+extern bool isCaptive;
+extern bool isStandby;
 
 int captivePortalSetup()
 {
@@ -27,7 +29,7 @@ int captivePortalSetup()
     WiFi.mode(WIFI_OFF);          // this calls esp_wifi_stop internally
     delay(50);
 
-    while (!config.offlineMode)
+    while (!isStandby)
     {
         timestamp = millis();
         wl_status_t wifiStatus = WiFi.status();
@@ -104,6 +106,7 @@ int captivePortalSetup()
     return -1; // offline mode
 }
 
+
 void captivePortalLoop()
 {
     if (captiveMode)
@@ -118,13 +121,14 @@ void captivePortalLoop()
                 DEBUG_println("waiting for clients to disconnect...");
                 config.portalTimeout += 30; // extend timeout by 30 seconds
             } else {
-                DEBUG_println("stopping AP and reboot...");
+                DEBUG_println("stopping AP and entering standby mode...");
                 WiFi.softAPdisconnect(true);
-                WiFi.disconnect(true);
+                WiFi.mode(WIFI_OFF);
                 captiveMode = false;
                 wiFiConnecting = false;
-                delay(500);
-                requestReboot("Portal Timeout");
+                isCaptive = false;
+                isStandby = true;
+                delay(100);
             }
         }
     }

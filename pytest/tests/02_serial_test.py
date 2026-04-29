@@ -9,7 +9,7 @@ def test_serial_api_offline(workbench, slot):
     time.sleep(3)
 
     # Send STATUS and wait for JSON line (starts with {)
-    result = workbench.serial_write(slot=slot, data="\nOFFLINE\n", pattern='Offline Mode', timeout=15)
+    result = workbench.serial_write(slot=slot, data="\nOFFLINE\n", pattern='Standby Mode', timeout=15)
     assert result.get("matched")
 
 def test_serial_api_status(workbench, slot):
