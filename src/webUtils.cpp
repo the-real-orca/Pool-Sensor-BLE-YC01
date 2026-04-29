@@ -331,13 +331,10 @@ void webServerInit(AsyncWebServer &webServer, bool isCaptive)
         });
 
     webServer.on("/config.json", HTTP_PUT, [](AsyncWebServerRequest *request)
-            { 
-                request->send(200, "text/plain", "ok"); 
+            {
+                request->send(200, "text/plain", "ok");
             }, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total)
             {
-                #if !DEBUG_SECURITY
-                    return;
-                #endif
                 if ( index != 0 || len < 2 )
                     return request->send(500, "text/plain", "BAD CONFIG");
 
@@ -349,7 +346,7 @@ void webServerInit(AsyncWebServer &webServer, bool isCaptive)
                         // Only update if not masked
                         if (doc["wifiPassword"] == "***") doc["wifiPassword"] = config.wifiPassword;
                         if (doc["mqttPassword"] == "***") doc["mqttPassword"] = config.mqttPassword;
-                        
+
                         serializeJson(doc, file);
                         file.close();
                         requestReboot("Config saved via HTTP PUT");

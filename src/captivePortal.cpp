@@ -56,12 +56,12 @@ int captivePortalSetup()
                     if ((timestamp - lastWifiUpdate) > ((uint32_t) config.wifiTimeout * 1000))
                     {
                         // switch to captive portal mode if not connected
+                        DEBUG_println("\nWiFi connection failed (timeout)...");
                         WiFi.mode(WIFI_OFF);
                         delay(100);
                         lastWifiUpdate = timestamp;
                         wiFiConnecting = false;
                         captiveMode = true;
-                        DEBUG_println("WiFi connection failed...");
                     }
                 }
             }
