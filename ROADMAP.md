@@ -18,6 +18,7 @@ This document consolidates the project's tasks and roadmap, providing a prioriti
 - [x] **Technical Specification (TSD):** Expand on the BLE decoding algorithm and the internal state machine, document status LED meaning.
 - [x] **API Documentation:** Document the `/cmd` and `/status` endpoints.
 - [x] **Config Cleanup:** Finalize `config_t` structure and remove legacy TODOs., rename config.address -> config.bleAddress
+- [x] **Network Refactoring:** Implement Standby Mode, remove permanent offline mode, and update Serial API.
 
 ## Phase 2: Tests (Medium Priority)
 - [x] **Unit Tests:** Implement tests Captive Portal, WiFi AP connection and Web site.

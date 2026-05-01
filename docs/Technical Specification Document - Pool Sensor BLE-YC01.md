@@ -93,6 +93,8 @@ typedef struct {
 
 ### 3.3 Network Communication
 - **MQTT:** Publishes to the configured topic every `interval` seconds. JSON payload includes all sensor readings and system status.
+- **Standby Mode:** If WiFi is disconnected for more than `wifiTimeout` seconds, or if the `OFFLINE` serial command is issued, the device enters a non-blocking **Standby Mode**. In this mode, WiFi and Access Point are disabled, but BLE scanning and serial commands remain active. The system periodically attempts a WiFi reconnection every 60 seconds until successful.
+- **Captive Portal:** Initiated if initial WiFi connection fails or is configured incorrectly. After a `portalTimeout`, the portal disables the AP and transitions to **Standby Mode** instead of rebooting.
 - **HTTP:** REST-like API for commands (`/cmd`), status (`/status`), and configuration (`/config.json`).
 
 #### 3.3.1 HTTP API Endpoints
@@ -232,6 +234,7 @@ The ESP32 provides a non-blocking Serial API for configuration and control via t
 | Command | Description |
 | :--- | :--- |
 | **RESET** | Restarts the ESP32. |
+| **OFFLINE** | Switches the device into **Standby Mode**, disabling all network operations. |
 | **SCAN** | Clears the stored BLE address and forces a re-scan. |
 | **READ** | Forces an immediate BLE read cycle. |
 | **STATUS** | Prints the current status JSON to the serial output. |
