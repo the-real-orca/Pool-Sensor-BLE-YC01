@@ -1,0 +1,110 @@
+### Ping Workbench
+GET http://esp32-workbench.home:8080/api/wifi/ping
+
+
+### Scan WIFI
+GET http://esp32-workbench.home:8080/api/wifi/scan
+
+
+### WiFi Status
+GET http://esp32-workbench.home:8080/api/wifi/ap_status
+
+
+### WiFi Mode
+GET http://esp32-workbench.home:8080/api/wifi/mode
+
+
+### WiFi Events
+GET http://esp32-workbench.home:8080/api/wifi/events
+
+### WiFi connect event
+POST http://esp32-workbench.home:8080/api/wifi/ap_start
+Content-Type: application/json
+
+{
+"ssid": "WT-test",
+"password": "testpass123",
+"channel":6
+}
+
+
+
+### WiFi Drain Events
+POST http://esp32-workbench.home:8080/api/wifi/events/drain 
+
+### Wifi HTTP Relay
+POST http://esp32-workbench.home:8080/api/wifi/http_relay
+Content-Type: application/json
+
+{
+"methode": "GET",
+"url":"http://192.168.4.17/",
+"timeout":10
+}
+
+
+### Serial Monitor
+POST http://esp32-workbench.home:8080/api/serial/monitor
+Content-Type: application/json
+
+{
+"slot":"SLOT1",
+"pattern":"aaa",
+"timeout":10
+}
+
+### Serial Reboot
+POST http://esp32-workbench.home:8080/api/serial/write
+Content-Type: application/json
+
+{
+"slot":"SLOT1",
+"data":"\nRESET\n",
+"pattern":"xxx",
+"timeout":20
+}
+
+
+
+
+### MQQT Status
+http://esp32-workbench.home:8080/api/mqtt/status
+
+
+### Start broker
+POST http://esp32-workbench.home:8080/api/mqtt/start
+
+### Subscribe to a topic
+POST http://esp32-workbench.home:8080/api/mqtt/subscribe
+Content-Type: application/json
+
+{
+    "topic": "/test", 
+    "qos": 0
+}
+
+### Get Messages
+GET http://esp32-workbench.home:8080/api/mqtt/messages?limit=10
+
+### Get Messages filtered by Topic
+GET http://esp32-workbench.home:8080/api/mqtt/messages?limit=10&topic=/#
+
+### Get Messages filtered by Payload
+GET http://esp32-workbench.home:8080/api/mqtt/messages?limit=10&payload=hello
+
+### Clear Messages
+POST http://esp32-workbench.home:8080/api/mqtt/messages/clear
+
+
+### Publish a message
+POST http://esp32-workbench.home:8080/api/mqtt/publish
+Content-Type: application/json
+
+{
+    "topic": "/test", 
+    "payload": "hello2"
+}
+
+### Stop broker
+POST http://esp32-workbench.home:8080/api/mqtt/stop
+

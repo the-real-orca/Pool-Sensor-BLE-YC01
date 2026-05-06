@@ -25,6 +25,66 @@ static char statusJsonBuffer[BUFFER_SIZE];
 static uint32_t lastScan = 0;
 String resetReason;
 
+// wifi
+bool isCaptive = false;
+bool isStandby = false;
+static uint32_t diconnectedAt = 0; // timestamp when the device was disconnected from WiFi
+static uint32_t lastWifiRetry = 0; // timestamp for periodic WiFi reconnection attempts
+
+// MQTT
+#include <PubSubClient.h>
+#include <WiFiClientSecure.h>
+WiFiClient wifiClient;
+WiFiClientSecure secureClient;
+PubSubClient mqttClient;
+
+// sensor state
+static sensorReadings_t lastReadings = {0};
+static String lastStatus = "init";
+static String lastBleAddress = "";
+static String lastSensorType = "unknown";
+
+/**
+ * @brief Updates the status JSON buffer with current system information and last sensor readings.
+ */
+void updateStatusJson() {
+  JsonDocument doc;
+  time_t now;
+  time(&now);
+
+  doc["time"] = now;
+  doc["name"] = config.name;
+  doc["status"] = lastStatus;
+  doc["bleAddress"] = lastBleAddress;
+  doc["sensorType"] = lastSensorType;
+
+  if (lastReadings.type) {
+    doc["type"] = lastReadings.type;
+    doc["pH"] = lastReadings.pH;
+    doc["ec"] = lastReadings.ec;
+    doc["salt"] = lastReadings.salt;
+    doc["tds"] = lastReadings.tds;
+    doc["orp"] = lastReadings.orp;
+    doc["cl"] = lastReadings.cl;
+    doc["temp"] = lastReadings.temp;
+    doc["bat"] = lastReadings.bat;
+    doc["bleRSSI"] = lastReadings.rssi;
+  } else {
+    doc["type"] = 0;
+  }
+
+  // WiFi and MQTT information
+  doc["wifiSSID"] = isCaptive ? config.portalSSID : (isStandby ? "Standby (Offline)" : config.wifiSSID);
+  doc["wifiRSSI"] = (isCaptive || isStandby) ? 0 : WiFi.RSSI();
+  doc["wifiIP"] = isCaptive ? WiFi.softAPIP().toString() : (isStandby ? "0.0.0.0" : WiFi.localIP().toString());
+  doc["mqttServer"] = config.mqttServer;
+  doc["mqttConnected"] = mqttClient.connected();
+  doc["isStandby"] = isStandby;
+  doc["resetReason"] = resetReason;
+
+  serializeJson(doc, statusJsonBuffer, BUFFER_SIZE);
+}
+
 /**
  * @brief Returns a human-readable string for the reset reason.
  * @param reason esp_reset_reason_t
@@ -47,22 +107,9 @@ String getResetReasonName(esp_reset_reason_t reason) {
   }
 }
 
-// wifi
-bool isCaptive = false;
-bool isStandby = false;
-static uint32_t diconnectedAt = 0; // timestamp when the device was disconnected from WiFi
-static uint32_t lastWifiRetry = 0; // timestamp for periodic WiFi reconnection attempts
-
 // web server
 AsyncWebServer webServer(80);
 Ticker restartTimer;
-
-// MQTT
-#include <PubSubClient.h>
-#include <WiFiClientSecure.h>
-WiFiClient wifiClient;
-WiFiClientSecure secureClient;
-PubSubClient mqttClient;
 
 /**
  * @brief Centralized reboot function with delay and cleanup.
@@ -271,6 +318,7 @@ void setup()
   webServerInit(webServer, isCaptive);
   webServer.on("/cmd", HTTP_GET, handleCmd);
   webServer.on("/status", HTTP_GET, [](AsyncWebServerRequest *request) {
+      updateStatusJson();
       request->send(200, "application/json", statusJsonBuffer); 
   });
   webServer.begin();
@@ -309,7 +357,7 @@ void setup()
   esp_task_wdt_init(20, true); // 20 seconds
   esp_task_wdt_add(NULL);
 
-  Serial.println("\ninit complete\n");
+  Serial.println("init complete");
 
 }
 
@@ -359,6 +407,7 @@ void handleSerialApi() {
         Serial.println("Forcing immediate read...\n");
         lastScan = millis()/1000 - config.interval;
       } else if (cmd == "STATUS") {
+        updateStatusJson();
         Serial.println(statusJsonBuffer);
       } else if (cmd == "SET_CONFIG") {
         if (arg.length() == 0) {
@@ -506,12 +555,8 @@ void loop()
 
     case BLE_PROCESS_RESULTS: {
       auto list = BLE_YC01::getFoundDevices();
-      
-      JsonDocument doc;
-      doc["time"] = now;
-      doc["name"] = config.name;
-
       bool found = false;
+
       for (const auto& addr : list) {
         esp_task_wdt_reset();
         Serial.print("Read device: ");
@@ -526,19 +571,10 @@ void loop()
           
           if ( readings.type ) {
             Serial.println("Data decoded successfully:");
-            doc["status"] = "data read successfully";
-            doc["bleAddress"] = device.getAddress().toString();
-            doc["sensorType"] = device.getSensorType();
-            doc["type"] = readings.type;
-            doc["pH"] = readings.pH;
-            doc["ec"] = readings.ec;
-            doc["salt"] = readings.salt;
-            doc["tds"] = readings.tds;
-            doc["orp"] = readings.orp;
-            doc["cl"] = readings.cl;
-            doc["temp"] = readings.temp;
-            doc["bat"] = readings.bat;
-            doc["bleRSSI"] = readings.rssi;
+            lastStatus = "data read successfully";
+            lastBleAddress = device.getAddress().toString().c_str();
+            lastSensorType = device.getSensorType();
+            lastReadings = readings;
             found = true;
           }
           break; 
@@ -546,23 +582,14 @@ void loop()
       }
 
       if (!found) {
-        doc["status"] = list.empty() ? "no devices found" : "no matching device found";
-        doc["bleAddress"] = config.bleAddress;
-        doc["sensorType"] = "unknown";
-        doc["type"] = 0;
-        Serial.println(doc["status"].as<String>());
+        lastStatus = list.empty() ? "no devices found" : "no matching device found";
+        lastBleAddress = config.bleAddress;
+        lastSensorType = "unknown";
+        lastReadings.type = 0;
+        Serial.println(lastStatus);
       }
 
-      // WiFi and MQTT information
-      doc["wifiSSID"] = isCaptive ? config.portalSSID : (isStandby ? "Standby (Offline)" : config.wifiSSID);
-      doc["wifiRSSI"] = (isCaptive || isStandby) ? 0 : WiFi.RSSI();
-      doc["wifiIP"] = isCaptive ? WiFi.softAPIP().toString() : (isStandby ? "0.0.0.0" : WiFi.localIP().toString());
-      doc["mqttServer"] = config.mqttServer;
-      doc["mqttConnected"] = mqttClient.connected();
-      doc["isStandby"] = isStandby;
-      doc["resetReason"] = resetReason;
-
-      serializeJson(doc, statusJsonBuffer);
+      updateStatusJson();
       DEBUG_println(statusJsonBuffer);
 
       // MQTT Publishing

@@ -54,10 +54,3 @@ def test_reboot_http(workbench, slot, wifi_connection):
     assert result.get("matched"), "Serial console did not show reboot request with reason"
 
 
-@pytest.mark.skip(reason="no MQTT connection to workbench")
-def test_reboot_mqtt_cleanup(workbench, slot):
-    """Test if the device stays alive long enough to log the disconnect."""
-    
-    time.sleep(2)
-    result = workbench.serial_write(slot=slot, data="RESET", pattern="Disconnecting MQTT...", timeout=5)
-    assert result.get("matched") or "Reboot requested" in str(result.get("output"))

@@ -2,10 +2,6 @@
 	"folders": [
 		{
 			"path": "."
-		},
-		{
-			"name": "ESP32 WiFi Template",
-			"path": "../ESP32 WiFi Template"
 		}
 	],
 	"settings": {

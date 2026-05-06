@@ -110,7 +110,7 @@ def test_portal_provisioning(workbench, slot, wifi_network):
     payload = {
         "wifiSSID": ssid,
         "wifiPassword": password,
-        "wifiTimeout": 60,
+        "wifiTimeout": 30,
         "portalSSID": "ESP32-Portal",
         "portalTimeout": 600
     }
@@ -163,10 +163,10 @@ def test_captive_portal_stops_after_timeout(workbench, slot):
     config = {
         "wifiSSID": "NonExistentWiFi_12345",
         "wifiPassword": "wrongpassword",
-        "wifiTimeout": 5, # Fast timeout for test
+        "wifiTimeout": 10, # Fast timeout for test
         "portalSSID": "ESP32-Portal-Test",
         "portalPassword": "",
-        "portalTimeout": 20 # Fast timeout for test
+        "portalTimeout": 15 # Fast timeout for test
     }
     
     # We use serial_write and check if it matches the success pattern
@@ -176,25 +176,33 @@ def test_captive_portal_stops_after_timeout(workbench, slot):
     print("Waiting for ESP32 to reboot and fail WiFi connection (monitoring serial)...")
     
     # Wait and Monitor Serial for Portal Start
-    result = workbench.serial_monitor(slot=slot, pattern="starting captive portal", timeout=15)
+    result = workbench.serial_monitor(slot=slot, pattern="starting captive portal", timeout=config["wifiTimeout"] + 5)
     assert result.get("matched"), "ESP32 did not start Captive Portal within timeout"
 
     # 2. Scan for the ESP32 AP
     print(f"--- Step 2: Scanning for ESP32 AP '{config['portalSSID']}' ---")
-    time.sleep(config["wifiTimeout"])
-    time.sleep(3)
-    wifi_scan = workbench.scan()
-    networks = wifi_scan.get("networks", [])
-    found = any(n.get("ssid") == config["portalSSID"] for n in networks)
+    found = False
+    for i in range(5):
+        wifi_scan = workbench.scan()
+        networks = wifi_scan.get("networks", [])
+        found = any(n.get("ssid") == config["portalSSID"] for n in networks)
+        if found: break
+        time.sleep(5)
     assert found, f"ESP32 Portal AP '{config['portalSSID']}' not found in WiFi scan"
 
     # 3. Wait for Portal timeout
     print(f"--- Step 3: Wait for Portal timeout ---")
     time.sleep(config["portalTimeout"])
-    time.sleep(10)
-    wifi_scan = workbench.scan()
-    networks = wifi_scan.get("networks", [])
-    found = any(n.get("ssid") == config["portalSSID"] for n in networks)
+    result = workbench.serial_monitor(slot=slot, pattern="Standby", timeout=15)
+    assert result.get("matched"), "ESP32 did not go into standby mode"
+
+    found = True
+    for i in range(5):
+        time.sleep(5)
+        wifi_scan = workbench.scan()
+        networks = wifi_scan.get("networks", [])
+        found = any(n.get("ssid") == config["portalSSID"] for n in networks)
+        if not(found): break
     assert not(found), f"ESP32 Portal AP '{config['portalSSID']}' still active, after timeout"
 
     

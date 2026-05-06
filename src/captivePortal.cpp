@@ -41,7 +41,7 @@ int captivePortalSetup()
                 lastWifiUpdate = timestamp;
                 wiFiConnecting = true;
                 dnsServer.stop();
-                DEBUG_println("WiFi connect...");
+                DEBUG_println("WiFi connecting ...");
                 WiFi.mode(WIFI_STA);
                 WiFi.begin(config.wifiSSID.c_str(), config.wifiPassword.c_str());
             }
@@ -58,7 +58,7 @@ int captivePortalSetup()
                     if ((timestamp - lastWifiUpdate) > ((uint32_t) config.wifiTimeout * 1000))
                     {
                         // switch to captive portal mode if not connected
-                        DEBUG_println("\nWiFi connection failed (timeout)...");
+                        DEBUG_println("WiFi connection failed (timeout)...");
                         WiFi.mode(WIFI_OFF);
                         delay(100);
                         lastWifiUpdate = timestamp;
