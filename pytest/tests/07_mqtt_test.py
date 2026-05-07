@@ -102,3 +102,85 @@ def test_mqtt_publish(workbench, slot, wifi_network):
         # but the JSON structure should be there.
     except json.JSONDecodeError:
         pytest.fail(f"Payload is not valid JSON: {payload}")
+
+
+def test_mqtt_reconnection_after_loss(workbench, slot, wifi_network):
+    """Test if the ESP reconnects to the MQTT broker after connection loss."""
+    
+    # Start the workbench MQTT broker
+    workbench.mqtt_start()
+    time.sleep(2)
+    
+    # Configure the ESP
+    config = {
+        "wifiSSID": wifi_network.get("ssid"),
+        "wifiPassword": wifi_network.get("password"),
+        "wifiTimeout": 30,
+        "mqttServer": wifi_network.get("ap_ip"),
+        "mqttPort": 1883,
+        "mqttTopic": "/test/topic",
+        "interval": 60
+    }
+    
+    # Send SET_CONFIG
+    print("--- Step 1: Initial configuration ---")
+    result = workbench.serial_write(slot=slot, data=f"\nSET_CONFIG {json.dumps(config)}\n", pattern="Config saved successfully.", timeout=15)
+    assert result.get("matched")
+    
+    result = workbench.serial_monitor(slot=slot, pattern="MQTT-broker... ok", timeout=25)
+    assert result.get("matched")
+    
+    # Get ESP IP
+    time.sleep(5)
+    status = workbench.ap_status()
+    stations = status.get("stations", [])
+    assert len(stations) > 0
+    esp_ip = stations[0].get("ip")
+    
+    # Verify initial connection
+    resp = workbench.http_get(f"http://{esp_ip}/status", timeout=5)
+    assert resp.json().get("mqttConnected") is True
+    print("Initial MQTT connection verified.")
+
+    # 2. Stop the MQTT broker
+    print("--- Step 2: Stopping MQTT broker to simulate connection loss ---")
+    workbench.mqtt_stop()
+    time.sleep(5)
+    
+    # Verify disconnection (optional, might take time for client to realize)
+    resp = workbench.http_get(f"http://{esp_ip}/status", timeout=5)
+    print(f"Status after broker stop: mqttConnected={resp.json().get('mqttConnected')}")
+    
+    # 3. Restart the MQTT broker
+    print("--- Step 3: Restarting MQTT broker ---")
+    workbench.mqtt_start()
+    time.sleep(2)
+    
+    # Clear and subscribe
+    workbench.mqtt_clear_messages()
+    workbench.mqtt_subscribe(config["mqttTopic"])
+    
+    # 4. Trigger READ to force reconnection and publishing
+    print("--- Step 4: Triggering READ to force reconnection ---")
+    workbench.serial_write(slot=slot, data="\nREAD\n")
+    
+    # Wait for the reconnection and publish (checking broker)
+    print("Waiting for ESP to reconnect and publish message...")
+    found_msg = False
+    for i in range(10): # Try for 40 seconds
+        messages = workbench.mqtt_get_messages(topic=config["mqttTopic"])
+        if len(messages) > 0:
+            found_msg = True
+            print(f"MQTT message received after {i*4}s!")
+            break
+        time.sleep(4)
+        
+    assert found_msg, "No MQTT messages received after reconnection"
+    
+    # Parse and verify
+    latest_msg = messages[-1]
+    data = json.loads(latest_msg.get("payload", "{}"))
+    assert data.get("mqttConnected") is True, "Published data says MQTT is not connected"
+    
+    print("MQTT reconnection after loss test PASSED")
+

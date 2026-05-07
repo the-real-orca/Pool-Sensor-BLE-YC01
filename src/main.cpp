@@ -137,11 +137,29 @@ void requestReboot(String reason, uint32_t delayMs) {
  * @brief Handles the MQTT client loop.
  * 
  * Only active if MQTT is configured and not in captive portal mode.
+ * Periodically attempts to reconnect if connection is lost.
  */
 void mqttLoop() {
+  static uint32_t lastMqttRetry = 0;
+  uint32_t uptime = millis() / 1000;
+
   if ( config.mqttPort && !isCaptive) {
     if ( mqttClient.connected() ) {
       mqttClient.loop();
+    } else {
+      // Periodically attempt to reconnect
+      if ( uptime - lastMqttRetry > 10 ) {
+        lastMqttRetry = uptime;
+        DEBUG_print("connecting to MQTT-broker... ");
+        mqttClient.setServer(config.mqttServer.c_str(), config.mqttPort);
+        if ( mqttClient.connect("BLE-YC01", config.mqttUser.c_str(), config.mqttPassword.c_str()) ) {
+          mqttClient.loop();
+          DEBUG_println("ok");
+        } else {
+          DEBUG_print("error, rc=");
+          DEBUG_println(mqttClient.state());
+        }
+      }
     }
   }    
 }
@@ -498,6 +516,8 @@ void loop()
       // Periodic WiFi reconnection retry in standby mode
       if ( (uptime - lastWifiRetry) > config.wifiTimeout ) {
         DEBUG_println("Standby: attempting WiFi reconnection retry...");
+        WiFi.mode(WIFI_STA);
+        WiFi.setAutoReconnect(true);
         WiFi.begin(config.wifiSSID.c_str(), config.wifiPassword.c_str());
         lastWifiRetry = uptime;
       }
@@ -600,8 +620,9 @@ void loop()
           if ( mqttClient.connect("BLE-YC01", config.mqttUser.c_str(), config.mqttPassword.c_str()) ) {
             mqttClient.loop();
             DEBUG_println("ok");
+            updateStatusJson(); // update buffer with "connected" status
           } else {
-            DEBUG_print(" \nerror, rc=");
+            DEBUG_print("error, rc=");
             DEBUG_println(mqttClient.state());
           }
         }

@@ -22,13 +22,23 @@ This document consolidates the project's tasks and roadmap, providing a prioriti
 
 ## Phase 2: Tests (Medium Priority)
 - [x] **Unit Tests:** Implement tests Captive Portal, WiFi AP connection and Web site.
-- [ ] **MQTT Tests:** Implement tests for MQTT connection, status send, etc.
+- [x] **MQTT Tests:** Implement tests for MQTT connection, status send, etc.
+- [ ] **MQTT online:** deactivte MQTT when WiFi offline, in captive portal
+- [ ] **Offline mode:** stay in standby mode when activated manually (via OFFLINE command)
 
 ## Phase 3: Feature Enhancement & Connectivity (Medium Priority)
 - [ ] **Enhance MQTT Robustness:** Improve MQTT connection handling and error reporting in the web status.
 - [ ] **Web UI Optimization:** Improve the file upload process and provide more system information.
 - [ ] **BLE Reading Improvements:** Improve error reporting when connection or decoding fails, and address potential thread-safety issues in `decodeData`.
 - [ ] **Advanced BLE Diagnostics:** Add more logging for BLE connection and decoding steps.
+- [ ] **Threshhold detection:** Implement min / max thresholds for PH, Chlorine, ORP, Temperature and battery voltage
+        - plan implementation and update Roadmap, FSD, TSD and tests accordingly
+        - add limits to config and web ui
+        - allert on web ui, serial if value outside threshold
+        - add multiple testcases for each value (min, max, normal,recovery from min/max)
+        - send warning via mqtt if value outside threshold and on recovery
+        - implement email alerts if value outside threshold and on recovery
+
 
 ## Phase 4: Optimization & Hardware Support (Low Priority)
 - [ ] **Memory Management:** Monitor heap usage during long-term operation, especially with `ESPAsyncWebServer` and `ArduinoJson`.

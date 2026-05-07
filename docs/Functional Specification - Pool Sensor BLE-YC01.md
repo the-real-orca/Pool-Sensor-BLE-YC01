@@ -103,7 +103,7 @@ The system must provide a way to configure WiFi when no connection is available.
 ### 4.4 MQTT Data Publishing (FR-004)
 The system must send data to a central broker for external integration.
 - **Trigger:** Successful sensor data decoding.
-- **Behavior:** Formats a JSON payload and publishes it to the configured MQTT topic.
+- **Behavior:** Formats a JSON payload and publishes it to the configured MQTT topic. The system periodically monitors the connection and attempts to reconnect every 10 seconds if the broker is unavailable.
 - **Expected Result:** Data is visible in MQTT-connected clients (e.g., Home Assistant).
 
 ## 5. Non-Functional Requirements

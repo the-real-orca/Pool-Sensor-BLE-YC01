@@ -43,6 +43,7 @@ int captivePortalSetup()
                 dnsServer.stop();
                 DEBUG_println("WiFi connecting ...");
                 WiFi.mode(WIFI_STA);
+                WiFi.setAutoReconnect(true);
                 WiFi.begin(config.wifiSSID.c_str(), config.wifiPassword.c_str());
             }
             else

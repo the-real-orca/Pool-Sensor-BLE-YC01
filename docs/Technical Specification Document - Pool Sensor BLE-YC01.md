@@ -115,7 +115,7 @@ This endpoint allows executing specific commands on the device via HTTP GET requ
     *   `400 Bad Request`: If required parameters (`param`, `value`) are missing.
 
 ##### `/status` (GET)
-This endpoint provides the current operational status of the device and the latest sensor readings in JSON format.
+This endpoint provides the current operational status of the device and the latest sensor readings in JSON format. It uses the centralized `updateStatusJson()` function to ensure consistency across all interfaces.
 
 *   **Method:** `GET`
 *   **Parameters:** None
@@ -126,7 +126,8 @@ This endpoint provides the current operational status of the device and the late
         *   Current operational status (e.g., "data read successfully", "no matching device found").
         *   Last read sensor values (pH, EC, Salt, TDS, ORP, CL, Temp, Bat, BLE RSSI).
         *   WiFi status (SSID, RSSI, IP address).
-        *   MQTT connection status.
+        *   MQTT connection status and server address.
+        *   Standby mode status.
         *   ESP32 reset reason.
 *   **Example Response (JSON):**
     ```json
@@ -190,6 +191,7 @@ This endpoint allows updating the device configuration by providing a JSON paylo
 
 ### 3.5 Reliability
 - **Watchdog:** Hardware task watchdog (20 seconds). Resets are explicitly triggered before and after BLE scans and before each device read to prevent false triggers during long operations.
+- **MQTT Robustness:** The system periodically attempts to reconnect to the MQTT broker every 10 seconds if the connection is lost. The status JSON is updated immediately after a successful reconnect.
 - **Reboot Logic:** Centralized reboot handler (`requestReboot`) ensures:
     - Orderly disconnection from MQTT broker.
     - Serial logging of the reboot reason.
@@ -237,7 +239,7 @@ The ESP32 provides a non-blocking Serial API for configuration and control via t
 | **OFFLINE** | Switches the device into **Standby Mode**, disabling all network operations. |
 | **SCAN** | Clears the stored BLE address and forces a re-scan. |
 | **READ** | Forces an immediate BLE read cycle. |
-| **STATUS** | Prints the current status JSON to the serial output. |
+| **STATUS** | Prints the current status JSON (generated via `updateStatusJson()`) to the serial output. |
 | **SET_CONFIG** | Saves a new configuration provided as a JSON argument. (Blocked if `DEBUG_SECURITY` is 0). |
 | **GET_CONFIG** | Returns the current configuration. WiFi and MQTT passwords are masked if `DEBUG_SECURITY` is 0. |
 
