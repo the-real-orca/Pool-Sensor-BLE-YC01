@@ -36,6 +36,74 @@ def pytest_runtest_makereport(item, call):
     setattr(item, f"rep_{rep.when}", rep)
 
 
+@pytest.fixture(scope="session", autouse=True)
+def workbench_test_suite(request, workbench):
+    """Initializes the workbench UI for the entire test session."""
+    total = len(request.session.items)
+    workbench.test_start(spec="Pool Sensor Suite", phase="Automated Testing", total=total)
+    yield
+    workbench.test_end()
+
+
+@pytest.fixture(autouse=True)
+def test_progress(request, workbench):
+    """Fixture to log steps and results to the workbench UI automatically."""
+    # Only report for tests that actually use workbench or its derivatives
+    relevant_fixtures = {"workbench", "slot", "wifi_network", "wifi_connection"}
+    if not any(f in request.fixturenames for f in relevant_fixtures):
+        yield None
+        return
+
+    node = request.node
+    
+    # Format the file name (remove path and .py)
+    file_name = os.path.basename(node.nodeid.split("::")[0]).replace(".py", "")
+    
+    # Human friendly name transformation
+    def humanize(s):
+        s = s[5:] if s.startswith("test_") else s
+        s = s.replace("_", " ").title()
+        return s.replace("Api", "API").replace("Wifi", "WiFi").replace("Mqtt", "MQTT").replace("Ble", "BLE").replace("Http", "HTTP").replace("Rest", "REST").replace("Usb", "USB").replace("Sw", "SW").replace("Hw", "HW")
+
+    test_name = humanize(node.name)
+    # Human friendly ID (e.g. 02 Serial Test :: Serial API Status)
+    test_id = f"{humanize(file_name)} :: {test_name}"
+    
+    # Send initial "Running" step
+    workbench.test_step(test_id=test_id, name=test_name, step="Executing test...")
+    
+    def step(msg, manual=False):
+        workbench.test_step(test_id=test_id, name=test_name, step=msg, manual=manual)
+        
+    yield step
+    
+    # Send result after test execution
+    rep_call = getattr(node, "rep_call", None)
+    rep_setup = getattr(node, "rep_setup", None)
+    
+    if rep_setup and rep_setup.failed:
+        outcome = "FAIL"
+        details = f"Setup failed: {rep_setup.longreprtext}"
+    elif rep_call:
+        if rep_call.passed:
+            outcome = "PASS"
+            details = ""
+        elif rep_call.failed:
+            outcome = "FAIL"
+            details = str(rep_call.longreprtext)
+        elif rep_call.skipped:
+            outcome = "SKIP"
+            details = str(rep_call.was_skipped)
+        else:
+            outcome = "SKIP"
+            details = "Unknown state"
+    else:
+        outcome = "SKIP"
+        details = "No execution report"
+
+    workbench.test_result(test_id=test_id, name=test_name, result=outcome, details=details)
+
+
 @pytest.fixture(scope="session")
 def workbench(request):
     """Session-scoped connection to the Embedded Workbench."""

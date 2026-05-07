@@ -2,7 +2,7 @@ import pytest
 import time
 import json
 
-def test_network_wifi_lifecycle(workbench, slot, wifi_network):
+def test_network_wifi_lifecycle(workbench, slot, wifi_network, test_progress):
     """
     Test the full WiFi lifecycle:
     1. Connect to a new AP via Serial API configuration.
@@ -13,7 +13,7 @@ def test_network_wifi_lifecycle(workbench, slot, wifi_network):
     ssid = wifi_network["ssid"]
     password = wifi_network["password"]
     
-    print(f"--- Step 1: Configuring ESP to connect to {ssid} ---")
+    test_progress(f"Configuring ESP to connect to {ssid}")
     
     # 1.1 Send SET_CONFIG command with JSON
     config = {
@@ -27,8 +27,7 @@ def test_network_wifi_lifecycle(workbench, slot, wifi_network):
     result = workbench.serial_write(slot=slot, data=f"SET_CONFIG {config_json}\n", pattern="Config saved successfully.", timeout=20)
     assert result.get("matched"), "ESP did not save config via SET_CONFIG"
     
-    # 2. Wait for the ESP to connect to the AP
-    print(f"Waiting for ESP to connect to {ssid}...")
+    test_progress(f"Waiting for ESP to connect to {ssid}")
     try:
         event = workbench.wait_for_station(timeout=45)
         assert event["type"] == "STA_CONNECT"
@@ -52,24 +51,21 @@ def test_network_wifi_lifecycle(workbench, slot, wifi_network):
     esp_ip = stations[0].get("ip")
     assert esp_ip, "ESP IP address not found in station list"
     
-    print(f"--- Step 2: Verifying connectivity to http://{esp_ip}/ ---")
+    test_progress(f"Verifying connectivity to http://{esp_ip}/")
     resp = workbench.http_get(f"http://{esp_ip}/", timeout=15)
     assert resp.status_code == 200, f"ESP web server returned {resp.status_code}"
     assert "Pool Sensor" in resp.text or "Index" in resp.text, "ESP index page content mismatch"
     print("ESP web server is reachable")
 
     # 4. Test Reconnection
-    print("--- Step 3: Testing Reconnection after AP restart ---")
-    print("Stopping AP...")
+    test_progress("Testing Reconnection after AP restart")
     workbench.ap_stop()
     time.sleep(5)
     
-    print("Starting AP again...")
+    test_progress("Starting AP again and waiting for ESP")
     workbench.drain_events()
     workbench.ap_start(ssid, password)
     
-    print(f"Waiting for ESP to reconnect to {ssid}...")
-
     # Reconnection might take a while depending on ESP's retry strategy
     time.sleep(2)
     event = workbench.wait_for_station(timeout=60)
@@ -84,7 +80,7 @@ def test_network_wifi_lifecycle(workbench, slot, wifi_network):
     print("WiFi lifecycle test PASSED")
 
 
-def test_wifi_reconnection_after_loss(workbench, slot, wifi_network):
+def test_wifi_reconnection_after_loss(workbench, slot, wifi_network, test_progress):
     """
     Test if the ESP restores Wi-Fi connection after loss:
     1. Connect to AP.
@@ -98,7 +94,7 @@ def test_wifi_reconnection_after_loss(workbench, slot, wifi_network):
     password = wifi_network["password"]
     wifi_timeout = 15
     
-    print(f"--- Step 1: Configuring ESP with wifiTimeout={wifi_timeout} ---")
+    test_progress(f"Configuring ESP with wifiTimeout={wifi_timeout}")
     
     config = {
         "wifiSSID": ssid,
@@ -112,22 +108,22 @@ def test_wifi_reconnection_after_loss(workbench, slot, wifi_network):
     assert result.get("matched"), "ESP did not save config"
     
     # Wait for initial connection
-    print("Waiting for initial connection...")
+    test_progress("Waiting for initial connection")
     result = workbench.serial_monitor(slot=slot, pattern="WiFi successfully connected", timeout=30)
     assert result.get("matched"), "Initial WiFi connection failed"
     
     # 2. Stop the AP
-    print("--- Step 2: Stopping AP to simulate connection loss ---")
+    test_progress("Stopping AP to simulate connection loss")
     workbench.ap_stop()
     
     # 3. Wait for ESP to enter standby
-    print(f"Waiting for ESP to enter standby mode (should happen after {wifi_timeout}s)...")
+    test_progress(f"Waiting for standby mode (timeout={wifi_timeout}s)")
     # It takes wifi_timeout to detect and enter standby
     result = workbench.serial_monitor(slot=slot, pattern="entering standby mode due to WiFi disconnection timeout", timeout=wifi_timeout + 15)
     assert result.get("matched"), "ESP did not enter standby mode after connection loss"
     
     # 4. Restart the AP
-    print("--- Step 3: Restarting AP ---")
+    test_progress("Restarting AP and waiting for retry")
     workbench.ap_start(ssid, password)
     time.sleep(2)
 
@@ -138,7 +134,7 @@ def test_wifi_reconnection_after_loss(workbench, slot, wifi_network):
     print("reconnected: ", result)
     assert result.get("matched"), "ESP did not reconnect"
     
-    print("--- Step 4: Final verification ---")
+    test_progress("Final verification via HTTP")
     # Check if reachable via HTTP
     status = workbench.ap_status()
     stations = status.get("stations", [])

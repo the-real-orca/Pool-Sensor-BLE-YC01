@@ -1,8 +1,10 @@
 import json
 import time
 
-def test_http_get_password_masked(workbench, slot, wifi_connection):
+def test_http_get_password_masked(workbench, slot, wifi_connection, test_progress):
     esp_ip = wifi_connection.get("ip")
+    
+    test_progress(f"Requesting config.json from http://{esp_ip}/")
     # GET /config.json should be allowed, but passwords masked
     # Note: Accessing directly via standard requests/workbench might need to be adjusted if workbench requires specific wrappers
     # Based on previous failure, we check for 200 OK and mask
@@ -16,11 +18,13 @@ def test_http_get_password_masked(workbench, slot, wifi_connection):
     assert config.get("wifiPassword") == "***", "wifiPassword should be masked"
     assert config.get("mqttPassword") == "***", "mqttPassword should be masked"
 
-def test_serial_get_config_password_masked(workbench, slot):
+def test_serial_get_config_password_masked(workbench, slot, test_progress):
 
+    test_progress("Waiting for serial readiness")
     # wait between tests for serial communication
     time.sleep(3)
 
+    test_progress("Requesting configuration via serial")
     # Use serial_write with the correct pattern to capture the JSON
     # GET_CONFIG prints the configuration, ending with a newline.
     result = workbench.serial_write(slot=slot, data="\nGET_CONFIG\n", pattern="}", timeout=10)

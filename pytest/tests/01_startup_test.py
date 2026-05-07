@@ -45,12 +45,14 @@ def test_device_present(workbench):
     slots = workbench.get_devices()
     assert any(slot.get("present") for slot in slots)
 
-def test_startup_init(workbench):
+def test_startup_init(workbench, test_progress):
     """startup"""
+    test_progress("Locating DUT")
     dev = _find_present_device(workbench)
     assert dev is not None, "No DUT found"
     slot = dev.get("label", "")
 
+    test_progress(f"Resetting device in {slot} and waiting for startup")
     # reset ESP
     result = workbench.serial_reset(slot=slot)
 

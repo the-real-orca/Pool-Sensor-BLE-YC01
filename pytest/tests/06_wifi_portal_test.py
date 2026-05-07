@@ -2,7 +2,7 @@ import pytest
 import time
 import json
 
-def test_captive_portal_discovery_and_web(workbench, slot):
+def test_captive_portal_discovery_and_web(workbench, slot, test_progress):
     """
     Test the Captive Portal:
     1. Force the ESP32 into Portal Mode by providing invalid WiFi credentials.
@@ -10,6 +10,8 @@ def test_captive_portal_discovery_and_web(workbench, slot):
     3. Connect the Workbench to the ESP32's Portal.
     4. Verify the Portal's web pages.
     """
+    
+    test_progress("Preparing Workbench and ESP")
 
     result = workbench.serial_reset(slot=slot)
     
@@ -20,7 +22,7 @@ def test_captive_portal_discovery_and_web(workbench, slot):
     print("\n--- Step 0: Preparing Workbench ---")
 
     # 1. Force Portal Mode via Serial API
-    print("--- Step 1: Forcing Portal Mode via Serial SET_CONFIG ---")
+    test_progress("Forcing Portal Mode via invalid config")
     config = {
         "wifiSSID": "NonExistentWiFi_12345",
         "wifiPassword": "wrongpassword",
@@ -34,14 +36,13 @@ def test_captive_portal_discovery_and_web(workbench, slot):
     result = workbench.serial_write(slot=slot, data=f"\nSET_CONFIG {json.dumps(config)}\n", pattern="Config saved successfully", timeout=10)
     assert result.get("matched"), f"ESP32 did not confirm config save. Output: {result.get('output')}"
     
-    print("Waiting for ESP32 to reboot and fail WiFi connection (monitoring serial)...")
-    
+    test_progress("Waiting for Captive Portal to start")
     # Wait and Monitor Serial for Portal Start
     result = workbench.serial_monitor(slot=slot, pattern="starting captive portal", timeout=15)
     assert result.get("matched"), "ESP32 did not start Captive Portal within timeout"
 
     # 2. Scan for the ESP32 AP
-    print(f"--- Step 2: Scanning for ESP32 AP '{config['portalSSID']}' ---")
+    test_progress(f"Scanning for ESP32 AP '{config['portalSSID']}'")
     time.sleep(3)
     wifi_scan = workbench.scan()
     networks = wifi_scan.get("networks", [])
@@ -50,12 +51,12 @@ def test_captive_portal_discovery_and_web(workbench, slot):
     assert found, f"ESP32 Portal AP '{config['portalSSID']}' not found in WiFi scan"
 
     # 3. Connect Workbench to ESP32 Portal
-    print(f"--- Step 3: Connecting Workbench to ESP32 Portal '{config['portalSSID']}' ---")
+    test_progress(f"Connecting Workbench to ESP32 Portal '{config['portalSSID']}'")
     workbench.sta_join(ssid=config["portalSSID"], timeout=30)
     esp32_ap_ip = "192.168.4.1"
     
     # 4. Verify Web Pages
-    print(f"--- Step 4: Verifying Portal Web Pages at {esp32_ap_ip} ---")
+    test_progress(f"Verifying Portal Web Pages at {esp32_ap_ip}")
     
     # Home page
     resp = workbench.http_get(f"http://{esp32_ap_ip}/", timeout=15)
@@ -68,7 +69,7 @@ def test_captive_portal_discovery_and_web(workbench, slot):
    
     workbench.sta_leave()
 
-def test_portal_provisioning(workbench, slot, wifi_network):
+def test_portal_provisioning(workbench, slot, wifi_network, test_progress):
     """
     Test provisioning via the Portal:
     1. Ensure we are connected to the ESP32 Portal.
@@ -76,13 +77,14 @@ def test_portal_provisioning(workbench, slot, wifi_network):
     3. Verify the ESP32 connects to the new WiFi.
     """
 
+    test_progress("Preparing ESP for portal mode")
     result = workbench.serial_reset(slot=slot)
 
     # wait between tests for serial communication
     time.sleep(3)
 
     # 1. Force Portal Mode via Serial API
-    print("\n--- Step 1: Forcing Portal Mode via Serial SET_CONFIG ---")
+    test_progress("Forcing Portal Mode")
     config = {
         "wifiSSID": "NonExistentWiFi_12345",
         "wifiPassword": "wrongpassword",
@@ -99,14 +101,14 @@ def test_portal_provisioning(workbench, slot, wifi_network):
     workbench.serial_monitor(slot=slot, pattern="starting captive portal", timeout=15)
 
     # 2. Connect Workbench to ESP32 Portal
-    print(f"--- Step 2: Connecting Workbench to ESP32 Portal '{config['portalSSID']}' ---")
+    test_progress(f"Connecting Workbench to ESP32 Portal '{config['portalSSID']}'")
     workbench.sta_join(ssid=config["portalSSID"], timeout=30)
 
     esp32_ap_ip = "192.168.4.1"
     ssid = wifi_network["ssid"]
     password = wifi_network["password"]
     
-    print(f"--- Step 3: Provisioning ESP32 to connect to '{ssid}' ---")
+    test_progress(f"Provisioning ESP32 to connect to '{ssid}'")
     payload = {
         "wifiSSID": ssid,
         "wifiPassword": password,
@@ -123,7 +125,7 @@ def test_portal_provisioning(workbench, slot, wifi_network):
     assert resp.status_code == 200, f"Failed to send config to portal: {resp.status_code}"
     
     # 4. Prepare Workbench for incoming connection
-    print("--- Step 4: Starting Workbench AP and waiting for ESP32 ---")
+    test_progress("Starting Workbench AP and waiting for ESP32 connection")
     workbench.sta_leave()
     workbench.ap_start(ssid, password)
     time.sleep(3)
@@ -135,13 +137,13 @@ def test_portal_provisioning(workbench, slot, wifi_network):
     time.sleep(3)
 
     # 6. Verify home page on new IP
-    print(f"--- Step 5: Verifying connectivity at http://{esp32_ip}/ ---")
+    test_progress(f"Verifying connectivity at http://{esp32_ip}/")
     resp = workbench.http_get(f"http://{esp32_ip}/", timeout=15)
     assert resp.status_code == 200, f"Home page not reachable: {resp.status_code}"
     assert "Pool Sensor" in resp.text
     
 
-def test_captive_portal_stops_after_timeout(workbench, slot):
+def test_captive_portal_stops_after_timeout(workbench, slot, test_progress):
     """
     Test the Captive Portal:
     1. Force the ESP32 into Portal Mode by providing invalid WiFi credentials.
@@ -150,6 +152,7 @@ def test_captive_portal_stops_after_timeout(workbench, slot):
     4. Verify the Portal does not come up again
     """
 
+    test_progress("Resetting ESP")
     result = workbench.serial_reset(slot=slot)
     
     # wait between tests for serial communication
@@ -159,7 +162,7 @@ def test_captive_portal_stops_after_timeout(workbench, slot):
     print("\n--- Step 0: Preparing Workbench ---")
 
     # 1. Force Portal Mode via Serial API
-    print("--- Step 1: Forcing Portal Mode via Serial SET_CONFIG ---")
+    test_progress("Forcing Portal Mode via invalid config")
     config = {
         "wifiSSID": "NonExistentWiFi_12345",
         "wifiPassword": "wrongpassword",
@@ -173,14 +176,14 @@ def test_captive_portal_stops_after_timeout(workbench, slot):
     result = workbench.serial_write(slot=slot, data=f"\nSET_CONFIG {json.dumps(config)}\n", pattern="Config saved successfully", timeout=10)
     assert result.get("matched"), f"ESP32 did not confirm config save. Output: {result.get('output')}"
     
-    print("Waiting for ESP32 to reboot and fail WiFi connection (monitoring serial)...")
+    test_progress("Waiting for Captive Portal to start")
     
     # Wait and Monitor Serial for Portal Start
     result = workbench.serial_monitor(slot=slot, pattern="starting captive portal", timeout=config["wifiTimeout"] + 5)
     assert result.get("matched"), "ESP32 did not start Captive Portal within timeout"
 
     # 2. Scan for the ESP32 AP
-    print(f"--- Step 2: Scanning for ESP32 AP '{config['portalSSID']}' ---")
+    test_progress(f"Scanning for ESP32 AP '{config['portalSSID']}'")
     found = False
     for i in range(5):
         wifi_scan = workbench.scan()
@@ -191,7 +194,7 @@ def test_captive_portal_stops_after_timeout(workbench, slot):
     assert found, f"ESP32 Portal AP '{config['portalSSID']}' not found in WiFi scan"
 
     # 3. Wait for Portal timeout
-    print(f"--- Step 3: Wait for Portal timeout ---")
+    test_progress(f"Waiting for Portal timeout ({config['portalTimeout']}s)")
     time.sleep(config["portalTimeout"])
     result = workbench.serial_monitor(slot=slot, pattern="Standby", timeout=15)
     assert result.get("matched"), "ESP32 did not go into standby mode"
@@ -207,7 +210,7 @@ def test_captive_portal_stops_after_timeout(workbench, slot):
 
     
     # 4. Verify Web Pages
-    print(f"--- Step 4: Verify the Portal does not come up again ---")
+    test_progress("Verifying the Portal does not come up again")
     time.sleep(config["wifiTimeout"])
     time.sleep(5)
     wifi_scan = workbench.scan()
