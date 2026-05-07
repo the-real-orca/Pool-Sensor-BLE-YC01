@@ -29,7 +29,7 @@ These guidelines ensure high-quality, stable, and maintainable code for the Pool
 
 ## AI-Agent Specific Workflow
 
-1. **Source-First:** Read existing code and `graphify-out/GRAPH_REPORT.md` before proposing changes.
+1. **Source-First:** Read existing code before proposing changes.
 2. **Surgical Updates:** Only change what is absolutely necessary. Avoid gratuitous refactoring.
 3. **No "Ghost Code" Deletions:** Preserve relevant side effects and logging.
 4. **Validation:** Every change must be covered by a `pytest/` test case.

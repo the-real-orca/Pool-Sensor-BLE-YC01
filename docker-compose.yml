@@ -8,7 +8,7 @@ services:
     working_dir: /workspace
     volumes:
       - ./:/workspace
-      - ./.gemini:/root/.gemini
+      - ./.gemini_root:/root/.gemini
     environment:
       - FORCE_COLOR=1
       - TERM=xterm-256color
@@ -16,5 +16,4 @@ services:
       - LANG=C.UTF-8
       - LC_ALL=C.UTF-8
       - WORKBENCH_URL=http://esp32-workbench.home:8080/
-    entrypoint: ["bash"]
-
+    entrypoint: [ "bash" ]

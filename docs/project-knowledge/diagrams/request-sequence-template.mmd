@@ -1,0 +1,11 @@
+sequenceDiagram
+  participant Client
+  participant API
+  participant Service
+  participant DataStore
+  Client->>API: ROUTE 
+  API->>Service: validate and dispatch
+  Service->>DataStore: read/write domain data
+  DataStore-->>Service: result
+  Service-->>API: response DTO
+  API-->>Client: HTTP response

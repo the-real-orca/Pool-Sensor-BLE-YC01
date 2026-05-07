@@ -1,0 +1,8 @@
+flowchart TD
+  Developer[Developer in Gemini CLI] --> Skill[codebase-documentation-analyzer skill]
+  Skill --> Inventory[docs/_analysis/inventory.json]
+  Inventory --> Docs[Generated docs/]
+  Docs --> KB[docs/ai-agent-knowledge-base.md]
+  KB --> FutureAgents[Future AI agents]
+  Skill --> Source[Repository source files]
+  GeminiContext[Gemini CLI context and commands] --> Skill
