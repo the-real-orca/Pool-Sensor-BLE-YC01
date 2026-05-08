@@ -23,7 +23,7 @@ This document consolidates the project's tasks and roadmap, providing a prioriti
 ## Phase 2: Tests (Medium Priority)
 - [x] **Unit Tests:** Implement tests Captive Portal, WiFi AP connection and Web site.
 - [x] **MQTT Tests:** Implement tests for MQTT connection, status send, etc.
-- [ ] **MQTT online:** deactivte MQTT when WiFi is not in station mode (offline or captive portal)
+- [x] **MQTT online:** deactivate MQTT when WiFi is not in station mode (offline or captive portal)
 - [ ] **Offline mode:** stay in standby mode when activated manually (via OFFLINE command)
 
 ## Phase 3: Feature Enhancement & Connectivity (Medium Priority)

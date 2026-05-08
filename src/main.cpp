@@ -143,7 +143,8 @@ void mqttLoop() {
   static uint32_t lastMqttRetry = 0;
   uint32_t uptime = millis() / 1000;
 
-  if ( config.mqttPort && !isCaptive) {
+  // MQTT only active if configured, not in captive portal, not in standby and WiFi is connected
+  if ( config.mqttPort && !isCaptive && !isStandby && WiFi.isConnected()) {
     if ( mqttClient.connected() ) {
       mqttClient.loop();
     } else {
@@ -161,9 +162,12 @@ void mqttLoop() {
         }
       }
     }
-  }    
+  } else if ( mqttClient.connected() ) {
+    // Disconnect if we are no longer in a state where MQTT should be active
+    DEBUG_println("MQTT deactivated (WiFi lost, Standby or Captive Portal), disconnecting...");
+    mqttClient.disconnect();
+  }
 }
-
 /**
  * @brief HTTP GET handler for commands via /cmd endpoint.
  * @param request Pointer to AsyncWebServerRequest
@@ -417,6 +421,7 @@ void handleSerialApi() {
         WiFi.mode(WIFI_OFF);
         isStandby = true;
         lastWifiRetry = millis()/1000;
+        mqttLoop();
       } else if (cmd == "SCAN") {
         Serial.println("Forcing re-scan...\n");
         config.bleAddress = "";
@@ -613,7 +618,7 @@ void loop()
       DEBUG_println(statusJsonBuffer);
 
       // MQTT Publishing
-      if ( config.mqttPort && !isCaptive ) {
+      if ( config.mqttPort && !isCaptive && !isStandby && WiFi.isConnected() ) {
         if ( !mqttClient.connected() ) {
           DEBUG_print("connecting to MQTT-broker... ");
           mqttClient.setServer(config.mqttServer.c_str(), config.mqttPort);

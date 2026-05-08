@@ -4,6 +4,8 @@ Usage:
     pytest test_instrument.py --wt-url http://<pi-ip>:8080
 """
 
+from lib2to3.fixes import fix_print
+from lib2to3.fixes import fix_print
 import os
 import uuid
 import json
@@ -73,6 +75,7 @@ def test_progress(request, workbench):
     workbench.test_step(test_id=test_id, name=test_name, step="Executing test...")
     
     def step(msg, manual=False):
+        print(msg)
         workbench.test_step(test_id=test_id, name=test_name, step=msg, manual=manual)
         
     yield step
