@@ -35,7 +35,6 @@ def _find_present_device(workbench):
 def test_workbench_active(workbench):
     """WT-100: PING returns fw_version and uptime."""
     result = workbench.ping()
-    assert result.get("ok"), "workbench ping failed"
     assert "fw_version" in result
     assert "uptime" in result
     assert isinstance(result["uptime"], (int, float))

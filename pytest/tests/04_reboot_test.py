@@ -44,6 +44,9 @@ def test_reboot_http(workbench, slot, wifi_connection, test_progress):
     """Test if rebooting via HTTP command shows the correct reason in status."""
     esp_ip = wifi_connection.get("ip")
     
+    # Wait for device to be ready
+    time.sleep(1)
+        
     test_progress(f"Triggering reboot via HTTP: http://{esp_ip}/cmd?param=reboot&value=1")
     # Trigger Reboot via HTTP
     resp = workbench.http_get(f"http://{esp_ip}/cmd?param=reboot&value=1", timeout=10)

@@ -131,7 +131,7 @@ class WorkbenchDriver:
 
     def get_mode(self) -> dict:
         result = self._api_get("/api/wifi/mode", timeout=5)
-        return result
+        return {k: v for k, v in result.items() if k != "ok"}
 
     def set_mode(self, mode: str, ssid: str = "",
                  password: str = "") -> dict:
@@ -141,7 +141,7 @@ class WorkbenchDriver:
         if password:
             args["pass"] = password
         result = self._api_post("/api/wifi/mode", args, timeout=30)
-        return result
+        return {k: v for k, v in result.items() if k != "ok"}
 
     # ── AP management ────────────────────────────────────────────────
 
@@ -151,14 +151,14 @@ class WorkbenchDriver:
         if password:
             args["pass"] = password
         result = self._api_post("/api/wifi/ap_start", args, timeout=10)
-        return result
+        return {k: v for k, v in result.items() if k != "ok"}
 
     def ap_stop(self) -> None:
         self._api_post("/api/wifi/ap_stop", timeout=10)
 
     def ap_status(self) -> dict:
         result = self._api_get("/api/wifi/ap_status", timeout=10)
-        return result
+        return {k: v for k, v in result.items() if k != "ok"}
 
     # ── STA management ───────────────────────────────────────────────
 
@@ -168,7 +168,7 @@ class WorkbenchDriver:
         if password:
             args["pass"] = password
         result = self._api_post("/api/wifi/sta_join", args, timeout=timeout + 10)
-        return result
+        return {k: v for k, v in result.items() if k != "ok"}
 
     def sta_leave(self) -> None:
         self._api_post("/api/wifi/sta_leave", timeout=10)
@@ -214,7 +214,7 @@ class WorkbenchDriver:
 
     def scan(self) -> dict:
         result = self._api_get("/api/wifi/scan", timeout=20)
-        return result
+        return {k: v for k, v in result.items() if k != "ok"}
 
     # ── Events ───────────────────────────────────────────────────────
 
@@ -257,7 +257,7 @@ class WorkbenchDriver:
 
     def ping(self) -> dict:
         result = self._api_get("/api/wifi/ping", timeout=5)
-        return result
+        return {k: v for k, v in result.items() if k != "ok"}
 
     def reset(self) -> None:
         """No-op for Pi backend (no hardware to reset)."""
@@ -288,7 +288,7 @@ class WorkbenchDriver:
         result = self._api_post(
             "/api/serial/reset", {"slot": slot}, timeout=30
         )
-        return result
+        return {k: v for k, v in result.items() if k != "ok"}
 
     def serial_output(self, slot: str = "SLOT2",
                       lines: int = 50, since: float = 0) -> dict:
@@ -307,7 +307,7 @@ class WorkbenchDriver:
         result = self._api_post(
             "/api/serial/monitor", body, timeout=timeout + 5
         )
-        return result
+        return {k: v for k, v in result.items() if k != "ok"}
 
     def serial_write(self, slot: str = "SLOT2", data: str = "",
                      pattern: Optional[str] = None,
@@ -327,7 +327,7 @@ class WorkbenchDriver:
         result = self._api_post(
             "/api/enter-portal", {"slot": slot, "resets": resets}, timeout=10
         )
-        return result
+        return {k: v for k, v in result.items() if k != "ok"}
 
     def wait_for_state(self, slot_label: str, state: str,
                        timeout: float = 30,
@@ -409,6 +409,24 @@ class WorkbenchDriver:
         """End the test session."""
         return self._api_post("/api/test/update", {"end": True})
 
+    def test_progress(self) -> dict:
+        """GET /api/test/progress — poll current test session state."""
+        return self._api_get("/api/test/progress")
+
+    def test_clear(self) -> dict:
+        """DELETE /api/test/progress — clear the stored test report."""
+        url = f"{self.base_url}/api/test/progress"
+        req = urllib.request.Request(url, method="DELETE")
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read())
+        except Exception as e:
+            raise CommandTimeout(f"DELETE /api/test/progress: {e}")
+
+        if not data.get("ok", False):
+            raise CommandError("test_clear", data)
+        return data
+
     # ── GPIO control ──────────────────────────────────────────────────
 
     def gpio_set(self, pin: int, value) -> dict:
@@ -419,43 +437,66 @@ class WorkbenchDriver:
         """Get current GPIO pin states."""
         return self._api_get("/api/gpio/status")
 
-    # ── CW beacon ─────────────────────────────────────────────────────
+    # ── Signal generator (Si5351 + PE4302, with GPCLK fallback) ──────
 
-    def cw_start(self, freq: int, message: str, wpm: int = 15,
-                 pin: int = 5, repeat: bool = True) -> dict:
-        """Start CW beacon on GPCLK pin.
+    def siggen_start(self, freq_hz: float, backend: str = "auto",
+                     channel: Optional[int] = None, pin: Optional[int] = None,
+                     atten_db: Optional[float] = None,
+                     morse: Optional[dict] = None) -> dict:
+        """Start an RF carrier.
 
         Args:
-            freq: Target frequency in Hz (snapped to nearest integer divider).
-            message: Morse message text.
-            wpm: Words per minute (PARIS standard), 1-60.
-            pin: GPIO pin with GPCLK (5 or 6).
-            repeat: Loop message continuously.
+            freq_hz: Carrier frequency in Hz.
+            backend: "auto" (prefer Si5351), "si5351", or "gpclk".
+            channel: Si5351 output channel (0, 1, 2). Default from config.
+            pin: GPCLK pin (5 or 6). Default from config.
+            atten_db: Initial PE4302 attenuation (0..31.5 dB).
+            morse: Optional {"message": str, "wpm": int, "repeat": bool}
+                   to key the carrier with Morse instead of continuous tone.
 
         Returns:
-            dict with actual freq_hz, divider, and beacon parameters.
+            State dict: backend, freq_hz, channel, pin, atten_db, morse.
         """
-        return self._api_post("/api/cw/start", {
-            "pin": pin, "freq": freq, "message": message,
-            "wpm": wpm, "repeat": repeat})
+        body: dict = {"freq_hz": freq_hz, "backend": backend}
+        if channel is not None:
+            body["channel"] = channel
+        if pin is not None:
+            body["pin"] = pin
+        if atten_db is not None:
+            body["atten_db"] = atten_db
+        if morse is not None:
+            body["morse"] = morse
+        return self._api_post("/api/siggen/start", body, timeout=15)
 
-    def cw_stop(self) -> dict:
-        """Stop CW beacon."""
-        return self._api_post("/api/cw/stop")
+    def siggen_stop(self) -> dict:
+        """Stop the signal generator."""
+        return self._api_post("/api/siggen/stop", {}, timeout=10)
 
-    def cw_status(self) -> dict:
-        """Get current CW beacon state."""
-        return self._api_get("/api/cw/status")
+    def siggen_freq(self, freq_hz: float,
+                    channel: Optional[int] = None) -> dict:
+        """Retune the active carrier without restarting the keyer."""
+        body: dict = {"freq_hz": freq_hz}
+        if channel is not None:
+            body["channel"] = channel
+        return self._api_post("/api/siggen/freq", body, timeout=10)
 
-    def cw_frequencies(self, low: int = 3_500_000,
-                       high: int = 4_000_000) -> list:
-        """List achievable GPCLK frequencies in a range.
+    def siggen_atten(self, db: float) -> dict:
+        """Set PE4302 attenuation in dB (0..31.5, 0.5 dB steps).
 
-        Returns:
-            list of {divider, freq_hz} dicts.
+        Raises CommandError if PE4302 is not available.
         """
+        return self._api_post("/api/siggen/atten", {"db": db}, timeout=10)
+
+    def siggen_status(self) -> dict:
+        """Current generator state + hardware detection."""
+        return self._api_get("/api/siggen/status")
+
+    def siggen_frequencies(self, low: float, high: float,
+                           backend: str = "auto") -> list:
+        """Achievable frequencies in a range (gpclk returns discrete
+        dividers; si5351 reports the range as continuously tunable)."""
         result = self._api_get(
-            f"/api/cw/frequencies?low={low}&high={high}")
+            f"/api/siggen/frequencies?low={low}&high={high}&backend={backend}")
         return result.get("frequencies", [])
 
     # ── GDB debug ─────────────────────────────────────────────────────
@@ -544,7 +585,6 @@ class WorkbenchDriver:
 
     def firmware_upload(self, project: str, filepath: str) -> dict:
         """POST /api/firmware/upload — upload a binary file."""
-        import mimetypes
         boundary = "----WorkbenchUpload"
         filename = os.path.basename(filepath)
         with open(filepath, "rb") as f:

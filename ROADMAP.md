@@ -23,7 +23,7 @@ This document consolidates the project's tasks and roadmap, providing a prioriti
 ## Phase 2: Tests (Medium Priority)
 - [x] **Unit Tests:** Implement tests Captive Portal, WiFi AP connection and Web site.
 - [x] **MQTT Tests:** Implement tests for MQTT connection, status send, etc.
-- [ ] **MQTT online:** deactivte MQTT when WiFi offline, in captive portal
+- [ ] **MQTT online:** deactivte MQTT when WiFi is not in station mode (offline or captive portal)
 - [ ] **Offline mode:** stay in standby mode when activated manually (via OFFLINE command)
 
 ## Phase 3: Feature Enhancement & Connectivity (Medium Priority)
@@ -36,8 +36,22 @@ This document consolidates the project's tasks and roadmap, providing a prioriti
         - add limits to config and web ui
         - allert on web ui, serial if value outside threshold
         - add multiple testcases for each value (min, max, normal,recovery from min/max)
-        - send warning via mqtt if value outside threshold and on recovery
-        - implement email alerts if value outside threshold and on recovery
+        - send alert via mqtt if value outside threshold and on recovery
+             {
+                alert: true,
+                type: "temp",
+                value: 5,
+                min: 10,
+                max: 35,
+                text: "Alert:Temperature too low"
+             }
+        - draft concept for email alerts if value outside threshold and on recovery or missing heartbeat (status message missing for X minutes)
+             Send daily status summary via email (default 9am local time)
+              - include min / max values for all values since last summary
+              - trend since last summary
+              - alert on deviation from threshold or missing heartbeat
+              - status: normal, warning, critical, offline
+
 
 
 ## Phase 4: Optimization & Hardware Support (Low Priority)
