@@ -45,6 +45,27 @@ static String lastBleAddress = "";
 static String lastSensorType = "unknown";
 
 /**
+ * @brief Returns a human-readable string for the MQTT client state.
+ * @param state int result of mqttClient.state()
+ * @return String
+ */
+String getMqttStateName(int state) {
+  switch (state) {
+    case MQTT_CONNECTION_TIMEOUT:      return "Connection Timeout";
+    case MQTT_CONNECTION_LOST:         return "Connection Lost";
+    case MQTT_CONNECT_FAILED:          return "Connect Failed";
+    case MQTT_DISCONNECTED:            return "Disconnected";
+    case MQTT_CONNECTED:               return "Connected";
+    case MQTT_CONNECT_BAD_PROTOCOL:    return "Bad Protocol";
+    case MQTT_CONNECT_BAD_CLIENT_ID:   return "Bad Client ID";
+    case MQTT_CONNECT_UNAVAILABLE:     return "Unavailable";
+    case MQTT_CONNECT_BAD_CREDENTIALS: return "Bad Credentials";
+    case MQTT_CONNECT_UNAUTHORIZED:    return "Unauthorized";
+    default:                           return "Unknown (" + String(state) + ")";
+  }
+}
+
+/**
  * @brief Updates the status JSON buffer with current system information and last sensor readings.
  */
 void updateStatusJson() {
@@ -79,6 +100,7 @@ void updateStatusJson() {
   doc["wifiIP"] = isCaptive ? WiFi.softAPIP().toString() : (isStandby ? "0.0.0.0" : WiFi.localIP().toString());
   doc["mqttServer"] = config.mqttServer;
   doc["mqttConnected"] = mqttClient.connected();
+  doc["mqttState"] = getMqttStateName(mqttClient.state());
   doc["isStandby"] = isStandby;
   doc["resetReason"] = resetReason;
 
@@ -145,22 +167,39 @@ void mqttLoop() {
 
   // MQTT only active if configured, not in captive portal, not in standby and WiFi is connected
   if ( config.mqttPort && !isCaptive && !isStandby && WiFi.isConnected()) {
-    if ( mqttClient.connected() ) {
-      mqttClient.loop();
-    } else {
+    if ( !mqttClient.connected() ) {
       // Periodically attempt to reconnect
       if ( uptime - lastMqttRetry > 10 ) {
         lastMqttRetry = uptime;
-        DEBUG_print("connecting to MQTT-broker... ");
-        mqttClient.setServer(config.mqttServer.c_str(), config.mqttPort);
-        if ( mqttClient.connect("BLE-YC01", config.mqttUser.c_str(), config.mqttPassword.c_str()) ) {
-          mqttClient.loop();
-          DEBUG_println("ok");
+
+        // Setup client
+        if ( config.mqttTLS ) {
+          mqttClient.setClient(secureClient);
         } else {
-          DEBUG_print("error, rc=");
-          DEBUG_println(mqttClient.state());
+          mqttClient.setClient(wifiClient);
+        }
+        mqttClient.setServer(config.mqttServer.c_str(), config.mqttPort);
+
+        // Generate Unique Client ID
+        String clientId = config.name.isEmpty() ? "PoolSensor-" + WiFi.macAddress() : config.name;
+        clientId.replace(" ", "-");
+
+        DEBUG_printf("Connecting to MQTT: %s:%d as %s... ", config.mqttServer.c_str(), config.mqttPort, clientId.c_str());
+
+        // LWT (Last Will and Testament)
+        String lwtTopic = config.mqttTopic + "/availability";
+        
+        if ( mqttClient.connect(clientId.c_str(), config.mqttUser.c_str(), config.mqttPassword.c_str(), lwtTopic.c_str(), 1, true, "offline") ) {
+          DEBUG_println("connected");
+          mqttClient.publish(lwtTopic.c_str(), "online", true);
+          mqttClient.loop();
+          updateStatusJson(); // update buffer with "connected" status
+        } else {
+          DEBUG_printf("failed, rc=%d (%s)\n", mqttClient.state(), getMqttStateName(mqttClient.state()).c_str());
         }
       }
+    } else {
+      mqttClient.loop();
     }
   } else if ( mqttClient.connected() ) {
     // Disconnect if we are no longer in a state where MQTT should be active
@@ -619,20 +658,12 @@ void loop()
 
       // MQTT Publishing
       if ( config.mqttPort && !isCaptive && !isStandby && WiFi.isConnected() ) {
-        if ( !mqttClient.connected() ) {
-          DEBUG_print("connecting to MQTT-broker... ");
-          mqttClient.setServer(config.mqttServer.c_str(), config.mqttPort);
-          if ( mqttClient.connect("BLE-YC01", config.mqttUser.c_str(), config.mqttPassword.c_str()) ) {
-            mqttClient.loop();
-            DEBUG_println("ok");
-            updateStatusJson(); // update buffer with "connected" status
-          } else {
-            DEBUG_print("error, rc=");
-            DEBUG_println(mqttClient.state());
-          }
-        }
         if ( mqttClient.connected() ) {
-          mqttClient.publish(config.mqttTopic.c_str(), statusJsonBuffer);
+          if (mqttClient.publish(config.mqttTopic.c_str(), statusJsonBuffer)) {
+            DEBUG_print("MQTT sent successfully: "); DEBUG_println(config.mqttTopic);
+          } else {
+            DEBUG_print("MQTT send failed: "); DEBUG_println(config.mqttTopic);
+          }
           mqttClient.loop();
         }
       }

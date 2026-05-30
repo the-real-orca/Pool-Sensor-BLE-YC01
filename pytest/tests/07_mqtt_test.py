@@ -190,3 +190,60 @@ def test_mqtt_reconnection_after_loss(workbench, slot, wifi_network, test_progre
     
     print("MQTT reconnection after loss test PASSED")
 
+
+def test_mqtt_lwt_and_detailed_status(workbench, slot, wifi_network, test_progress):
+    """Test if the ESP uses the availability topic (LWT) and reports detailed MQTT state."""
+    
+    test_progress("Starting broker and configuring ESP")
+    workbench.mqtt_start()
+    time.sleep(2)
+    
+    config = {
+        "wifiSSID": wifi_network.get("ssid"),
+        "wifiPassword": wifi_network.get("password"),
+        "wifiTimeout": 30,
+        "mqttServer": wifi_network.get("ap_ip"),
+        "mqttPort": 1883,
+        "mqttTopic": "/test/topic",
+        "interval": 60
+    }
+    
+    test_progress("Configuring ESP")
+    result = workbench.serial_write(slot=slot, data=f"\nSET_CONFIG {json.dumps(config)}\n", pattern="Config saved successfully.", timeout=15)
+    assert result.get("matched")
+    
+    # Wait for connection
+    test_progress("Waiting for connection log")
+    result = workbench.serial_monitor(slot=slot, pattern="Connecting to MQTT:", timeout=25)
+    assert result.get("matched")
+    
+    test_progress("Checking availability topic (online)")
+    workbench.mqtt_subscribe(config["mqttTopic"] + "/availability")
+    time.sleep(5)
+    
+    messages = workbench.mqtt_get_messages(topic=config["mqttTopic"] + "/availability")
+    assert any(m.get("payload") == "online" for m in messages), "Availability topic did not receive 'online'"
+
+    test_progress("Verifying detailed MQTT state via HTTP")
+    time.sleep(2)
+    status = workbench.ap_status()
+    stations = status.get("stations", [])
+    assert len(stations) > 0
+    esp_ip = stations[0].get("ip")
+    
+    resp = workbench.http_get(f"http://{esp_ip}/status", timeout=5)
+    data = resp.json()
+    assert data.get("mqttConnected") is True
+    assert data.get("mqttState") == "Connected"
+
+    test_progress("Stopping broker to check error state reporting")
+    workbench.mqtt_stop()
+    time.sleep(10) # Wait for client to detect loss
+    
+    resp = workbench.http_get(f"http://{esp_ip}/status", timeout=5)
+    data = resp.json()
+    assert data.get("mqttConnected") is False
+    assert data.get("mqttState") in ["Connection Lost", "Disconnected", "Connection Timeout", "Connect Failed"]
+
+    print("MQTT LWT and detailed status test PASSED")
+

@@ -11,11 +11,11 @@
 #if DEBUG_SERIAL_PRINT
   #define DEBUG_println(x)  Serial.println(x)
   #define DEBUG_print(x)  Serial.print(x)
-  #define DEBUG_printf(x, y)  Serial.printf(x, y)
+  #define DEBUG_printf(...)  Serial.printf(__VA_ARGS__)
 #else  
   #define DEBUG_println(x)
   #define DEBUG_print(x)
-  #define DEBUG_printf(x, y)
+  #define DEBUG_printf(...)
 #endif
 
 /*

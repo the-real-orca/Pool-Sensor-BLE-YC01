@@ -24,10 +24,11 @@ This document consolidates the project's tasks and roadmap, providing a prioriti
 - [x] **Unit Tests:** Implement tests Captive Portal, WiFi AP connection and Web site.
 - [x] **MQTT Tests:** Implement tests for MQTT connection, status send, etc.
 - [x] **MQTT online:** deactivate MQTT when WiFi is not in station mode (offline or captive portal)
-- [ ] **Offline mode:** stay in standby mode when activated manually (via OFFLINE command)
+- [x] **Offline mode:** stay in standby mode when activated manually (via OFFLINE command)
 
 ## Phase 3: Feature Enhancement & Connectivity (Medium Priority)
-- [ ] **Enhance MQTT Robustness:** Improve MQTT connection handling and error reporting in the web status.
+- [x] **Enhance MQTT Robustness:** Improve MQTT connection handling and error reporting in the web status.
+        -> Centralized reconnection logic, unique ClientID, Last Will and Testament support, and detailed state reporting implemented.
 - [ ] **Web UI Optimization:** Improve the file upload process and provide more system information.
 - [ ] **BLE Reading Improvements:** Improve error reporting when connection or decoding fails, and address potential thread-safety issues in `decodeData`.
 - [ ] **Advanced BLE Diagnostics:** Add more logging for BLE connection and decoding steps.
