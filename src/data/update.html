@@ -1,28 +1,27 @@
-<!DOCTYPE HTML><html>
+<!DOCTYPE HTML>
+<html lang="de">
 <head>
-  <title>LX790 lawn mower Update</title>
-  <meta name='viewport' content='width=device-width, initial-scale=1'>
-  <meta content='de' http-equiv='Content-Language' />
-  <meta content='text/html; charset=utf-8' http-equiv='Content-Type' />
-  <link rel='icon' type='image/png' href='robomower.png'>
+  <title>Pool Sensor - Update</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8">
   <link rel="stylesheet" href="style.css">
   <script>
     function uploadBin() {
       var formdata = new FormData();
-      if ( espUpdate.files[0] ) {
-        formdata.append('file', espUpdate.files[0]);
+      var fileInput = document.getElementById('espUpdate');
+      if (fileInput.files[0]) {
+        formdata.append('file', fileInput.files[0]);
         var ajax = new XMLHttpRequest();
-        ajax.upload.addEventListener('progress', ()=>{
+        ajax.upload.addEventListener('progress', (event) => {
           var percent = Math.round((event.loaded / event.total) * 100);
-          document.getElementById('espProgress').textContent = percent + '% uploading ...';
-         }, false);
-        ajax.addEventListener('load', ()=>{
-          document.getElementById('espProgress').textContent = 'upload finished';
-          alert('Upload Finished');
-          espUpdate.value = null;
+          document.getElementById('espProgress').textContent = percent + '% uploading...';
         }, false);
-        ajax.addEventListener('error', errorHandler, false);
-        ajax.addEventListener('abort', errorHandler, false);
+        ajax.addEventListener('load', () => {
+          document.getElementById('espProgress').textContent = 'Upload finished';
+          alert('Firmware Upload Finished');
+          fileInput.value = null;
+        }, false);
+        ajax.addEventListener('error', () => alert('Upload Error'), false);
         ajax.open('POST', 'execupdate');
         ajax.send(formdata);
       } else {
@@ -32,50 +31,59 @@
 
     function uploadFile() {
       var formdata = new FormData();
-      if ( fileupload.files[0] ) {
-        formdata.append('file', fileupload.files[0]);
+      var fileInput = document.getElementById('fileupload');
+      if (fileInput.files[0]) {
+        formdata.append('file', fileInput.files[0]);
         var ajax = new XMLHttpRequest();
-        ajax.upload.addEventListener('progress', ()=>{
+        ajax.upload.addEventListener('progress', (event) => {
           var percent = Math.round((event.loaded / event.total) * 100);
-          document.getElementById('fileProgress').textContent = percent + '% uploading ...';
+          document.getElementById('fileProgress').textContent = percent + '% uploading...';
         }, false);
-        ajax.addEventListener('load', ()=>{
-          document.getElementById('fileProgress').textContent = 'upload finished';
-          alert('Upload Finished');          
-          fileupload.value = null;
+        ajax.addEventListener('load', () => {
+          document.getElementById('fileProgress').textContent = 'Upload finished';
+          alert('Filesystem Upload Finished');
+          fileInput.value = null;
         }, false);
-        ajax.addEventListener('error', errorHandler, false);
-        ajax.addEventListener('abort', errorHandler, false);
+        ajax.addEventListener('error', () => alert('Upload Error'), false);
         ajax.open('POST', '/fileupload');
         ajax.send(formdata);
       } else {
         alert('Please select a file!');
       }
     }
-
-    function errorHandler(event) {
-      alert('Upload Error');
-    }
-  </script>  
+  </script>
 </head>
-
- <body>
-  <h3><a href="/">[return]</a></h3>
-  <h1>LX79x WiFi Update</h1>
-  <h2>ESP32</h2>
-  <div>
-    <input id='espUpdate' type='file' accept='.bin'>
-    <button onclick='uploadBin()'>Update</button>
-    <i id='espProgress'></i>
-  </div>
-  <br><hr><br>
-  <h2>Filesystem</h2>
-  <div>
-    <input id='fileupload' type='file'>
-    <button onclick='uploadFile()'>Upload</button>
-    <i id='fileProgress'></i>
+<body>
+  <div class="topnav">
+    <h1 id="title">System Update</h1>
+    <div style="margin-top: 0.5rem;"><a href="/" style="color: white; text-decoration: none; font-size: 0.875rem;">&larr; Back to Dashboard</a></div>
   </div>
 
-  
- </body>
+  <div class="content">
+    <div class="card">
+      <h2>Firmware Update</h2>
+      <p class="status-info">Upload a new ESP32 firmware binary (.bin) to update the device software.</p>
+      <div class="config-group">
+        <input id="espUpdate" type="file" accept=".bin" style="margin-bottom: 1rem;">
+        <button class="button button-primary" onclick="uploadBin()">Upload Firmware</button>
+      </div>
+      <div id="espProgress" class="status-info" style="text-align: center; font-weight: 600;"></div>
+    </div>
+
+    <div class="card">
+      <h2>Filesystem Update</h2>
+      <p class="status-info">Upload a LittleFS image or individual files to update the Web UI and configuration assets.</p>
+      <div class="config-group">
+        <input id="fileupload" type="file" style="margin-bottom: 1rem;">
+        <button class="button button-outline" onclick="uploadFile()">Upload File</button>
+      </div>
+      <div id="fileProgress" class="status-info" style="text-align: center; font-weight: 600;"></div>
+    </div>
+
+    <div class="card">
+      <h2>System Controls</h2>
+      <button onclick="fetch('/cmd?param=reboot&value=1')" class="button button-danger">Reboot Device</button>
+    </div>
+  </div>
+</body>
 </html>

@@ -1,151 +1,196 @@
-<!DOCTYPE HTML><html>
+<!DOCTYPE HTML>
+<html lang="de">
 <head>
   <title>Pool Sensor BLE-YC01</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta content="de" http-equiv="Content-Language" />
-  <meta content="text/html; charset=utf-8" http-equiv="Content-Type" />
-  <link rel="icon" type="image/png" href="todo.png">
+  <meta charset="utf-8">
   <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
   <div class="topnav">
     <h1 id="title">Pool Sensor BLE-YC01</h1>
   </div>
+
   <div class="content">
-    <div id="security-warning" class="card" style="display:none; border: 2px solid red; padding: 10px; margin-bottom: 20px;">
-      <h2 style="color: red;">Security Warning</h2>
+    <div id="security-warning" class="card hide">
+      <h2>Security Warning</h2>
       <p>DEBUG_SECURITY is enabled. Configuration is exposed.</p>
-    </div>    
+    </div>
+
     <div class="card">
-      <div class="main">
-        <h2 id="msg_name" class="">name</h2>
-        <label for="msg_temp">Temperature:</label><b id="msg_temp">--</b><unit for="msg_temp">&deg;C</unit> <span class="info">(20 - 33 &deg;C)</span><br>
-        <label for="msg_cl">Chlor:</label><b id="msg_cl">--</b><unit for="msg_cl">mg/l</unit> <span class="info small">(0.4 - 1.0 mg/l)</span><br>
-        <label for="msg_pH">pH:</label><b id="msg_pH">--</b><unit for="msg_pH"></unit> <span class="info">(7.2 - 7.6)</span><br>
+      <h2 id="msg_name" style="margin-bottom: 0.25rem;">Sensor Data</h2>
+      <div class="status-info" style="margin-bottom: 1.5rem; text-align: center;">Measured: <span id="msg_datetime">--</span></div>
+      
+      <div class="main-values">
+        <div class="main-item">
+          <span class="sensor-label">Temperature</span>
+          <span class="sensor-value"><span id="msg_temp">--</span><span class="sensor-unit">&deg;C</span></span>
+          <div class="status-info">Target: 20 - 33 &deg;C</div>
+        </div>
+        
+        <div class="main-item">
+          <span class="sensor-label">pH Level</span>
+          <span class="sensor-value" id="msg_pH">--</span>
+          <div class="status-info">Target: 7.2 - 7.6</div>
+        </div>
+
+        <div class="main-item">
+          <span class="sensor-label">Chlorine</span>
+          <span class="sensor-value"><span id="msg_cl">--</span><span class="sensor-unit">mg/l</span></span>
+          <div class="status-info">Target: 0.4 - 1.0 mg/l</div>
+        </div>
       </div>
-      <hr>
-      <div>
-        <label for="msg_sensorType">Sensor:</label><span id="msg_sensorType"></span> (<span id="msg_bleAddress">xx</span>)<br>
-        <label for="msg_bat">Battery:</label><span id="msg_bat">--</span><unit for="msg_bat">mV</unit> <span class="info small">(2400 - 3200mV)</span><br>
-        <label for="msg_ec">EC:</label><span id="msg_ec">--</span><unit for="msg_ec">&micro;S/cm</unit> <span class="info small">(1000 - 2500 &micro;S/cm)</span><br>
-        <label for="msg_tds">TDS:</label><span id="msg_tds">--</span><unit for="msg_tds">ppm</unit> <span class="info small">(500 - 3000 ppm)</span><br>
-        <label for="msg_orp">ORP:</label><span id="msg_orp">--</span><unit for="msg_orp">mV</unit> <span class="info small">(600 - 800 mV)</span><br>
-        <label for="msg_salt">Salt:</label><span id="msg_salt">--</span><unit for="msg_salt">mg/l</unit> <br>
-        <label for="datetime">Timestamp:</label><span id="datetime"></span><br>
-        <label for="msg_resetReason">Last Reset:</label><span id="msg_resetReason">--</span><br>
-        <label for="msg_status">Status:</label><span id="msg_status">--</span><br>
-        <label for="msg_mqttState">MQTT:</label><span id="msg_mqttState">--</span><br>
+
+      <div class="collapsible">
+        <div class="collapsible-trigger">Detailed Measurements</div>
+        <div class="collapsible-content">
+          <div class="sensor-grid">
+            <div class="sensor-item">
+              <span class="sensor-label">EC</span>
+              <span class="sensor-value" id="msg_ec">--</span>
+              <span class="sensor-unit">&micro;S/cm</span>
+            </div>
+            <div class="sensor-item">
+              <span class="sensor-label">TDS</span>
+              <span class="sensor-value" id="msg_tds">--</span>
+              <span class="sensor-unit">ppm</span>
+            </div>
+            <div class="sensor-item">
+              <span class="sensor-label">ORP</span>
+              <span class="sensor-value" id="msg_orp">--</span>
+              <span class="sensor-unit">mV</span>
+            </div>
+            <div class="sensor-item">
+              <span class="sensor-label">Salt</span>
+              <span class="sensor-value" id="msg_salt">--</span>
+              <span class="sensor-unit">mg/l</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="card secondary">
-      <div id="toggle_config" class="toggle_card">&#x1F6E0;</div>
-      <div id="config" class="hide">
-        <p id="msg" style="color:grey">status ...</p>
-        <hr>
-        <p>
-          <button name="read" id="btn_read" class="button">read</button>
-          <button name="scan" id="btn_scan" class="button">re-scan</button>
-        </p>
-        <p>
-          <a href="config" class="button buttonSmall">config</a>
-          <a href="update" class="button buttonSmall small">update ESP <br> Filesystem</a>
-          <button name="reboot" id="btn_reboot" class="button buttonred buttonSmall">reboot</button>
-        </p>
+
+    <div class="card">
+      <div class="collapsible">
+        <div class="collapsible-trigger"><h2 style="display:inline; border:none; margin:0; padding:0; color:inherit;">System Status</h2></div>
+        <div class="collapsible-content">
+          <div class="status-list">
+            <div class="status-row">
+              <span class="label">Sensor</span>
+              <span class="value"><span id="msg_sensorType">--</span> (<span id="msg_bleAddress">xx</span>)</span>
+            </div>
+            <div class="status-row">
+              <span class="label">Battery</span>
+              <span class="value"><span id="msg_bat">--</span> mV</span>
+            </div>
+            <div class="status-row">
+              <span class="label">Last Update</span>
+              <span class="value" id="datetime">--</span>
+            </div>
+            <div class="status-row">
+              <span class="label">Status</span>
+              <span class="value" id="msg_status">--</span>
+            </div>
+            <div class="status-row">
+              <span class="label">MQTT</span>
+              <span class="value" id="msg_mqttState">--</span>
+            </div>
+            <div class="status-row">
+              <span class="label">Reset Reason</span>
+              <span class="value" id="msg_resetReason">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="collapsible">
+        <div class="collapsible-trigger"><h2 style="display:inline; border:none; margin:0; padding:0; color:inherit;">Controls</h2></div>
+        <div class="collapsible-content">
+          <div class="flex-center" style="flex-direction: column; gap: 1rem;">
+            <div class="flex-center">
+              <button name="read" id="btn_read" class="button button-primary">Read Sensor</button>
+              <button name="scan" id="btn_scan" class="button button-outline">Re-scan BLE</button>
+            </div>
+            <div class="flex-center">
+              <a href="config" class="button button-outline">Configuration</a>
+              <a href="update" class="button button-outline">OTA Update</a>
+              <button name="reboot" id="btn_reboot" class="button button-danger">Reboot</button>
+            </div>
+          </div>
+          
+          <pre id="msg" style="font-size: 0.75rem; color: var(--text-muted); overflow-x: auto; margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem; display: none;"></pre>
+          <div style="text-align: center; margin-top: 1.5rem;">
+            <button onclick="document.getElementById('msg').style.display = document.getElementById('msg').style.display === 'none' ? 'block' : 'none'" class="button button-outline" style="font-size: 0.7rem; width: auto; padding: 0.2rem 0.5rem; opacity: 0.8;">Toggle Debug View</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
   <script>
-  window.addEventListener('load', onLoad);
-  
-  function ActionToggleCard(event)
-  {
-    card = event.srcElement;
-    while ( !card.classList.contains('card') ) {
-      card = card.parentNode;
+    window.addEventListener('load', onLoad);
+
+    function initButton(btn) {
+      btn.addEventListener("click", () => {
+        console.log(btn.name + " triggered");
+        fetch("/cmd?param=" + btn.name + "&value=1")
+          .then(r => {
+             btn.style.opacity = "0.5";
+             setTimeout(() => btn.style.opacity = "1", 500);
+          });
+      });
     }
 
-    for (var el of card.children ) {
-      if ( !el.classList.contains('toggle_card') ) {
-        el.classList.toggle('hide');
-      }
-    }
-  }
-
-
-  function initButton(btn)
-  {
-    btn.addEventListener("mousedown",  ActionButtonOn);
-    btn.addEventListener("mouseup",    ActionButtonOff);
-    btn.addEventListener("mouseleave", ActionButtonOff);
-  }
-  function ActionButtonOn() 
-  {
-    console.log(this.name + " pressed");
-    fetch("/cmd?param="+this.name+"&value=1");
-  }
-  function ActionButtonOff() 
-  {
-    console.log(this.name + " released");
-    fetch("/cmd?param="+this.name+"&value=0");
-  }  
-  function ActionCheckbox() 
-  {
-    var val = this.checked ? 1 : 0;
-    console.log(this.name + " checked: " + val);
-    fetch("/cmd?param="+this.name+"&value="+val);
-    this.indeterminate = true;
-  }    
-
-  function updateStatus()
-  {
-    // load config
-    fetch('status')
-      .then((response) => response.json())
-      .then((data) => {
-        setTimeout(updateStatus, 2000);
-        document.getElementById("msg").textContent = JSON.stringify(data, null, 1);
-        for (var key in data) {
-          var el = document.getElementById("msg_"+key);
-          if (el) {
-            if ( el.type=="checkbox" )
-              el.checked = data[key];
-            else
+    function updateStatus() {
+      fetch('status')
+        .then((response) => response.json())
+        .then((data) => {
+          document.getElementById("msg").textContent = JSON.stringify(data, null, 2);
+          for (var key in data) {
+            var el = document.getElementById("msg_" + key);
+            if (el) {
               el.textContent = data[key];
+            }
           }
-        }
-        document.getElementById("datetime").textContent = new Date(data.time * 1000).toLocaleString();
-      })
-      .catch((error) => {
-        setTimeout(updateStatus, 10000);
-      });      
-  }
-
-  function onLoad(event) 
-  {
-    console.log('...init');
-    for (var el of document.querySelectorAll(".toggle_card") ) {
-      el.addEventListener("click",  ActionToggleCard);
+          if (data.time) {
+            const timeStr = new Date(data.time * 1000).toLocaleString();
+            document.getElementById("datetime").textContent = timeStr;
+            document.getElementById("msg_datetime").textContent = timeStr;
+          }
+          setTimeout(updateStatus, 2000);
+        })
+        .catch((error) => {
+          console.error("Status update failed", error);
+          setTimeout(updateStatus, 10000);
+        });
     }
 
-    for (var btn of document.getElementsByTagName("button") ) {
-      initButton(btn);
-    }
+    function onLoad() {
+      console.log('Initializing Dashboard...');
+      for (var btn of document.querySelectorAll(".button")) {
+        if (btn.name) initButton(btn);
+      }
 
-    updateStatus();
-    
-    // Check security status
-    fetch('config.json')
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.wifiPassword !== "***") {
-          document.getElementById("security-warning").style.display = "block";
-        }
-      })
-      .catch((err) => console.log("Security restricted or error"));
-  }  
+      // Collapsible logic
+      document.querySelectorAll('.collapsible-trigger').forEach(trigger => {
+        trigger.addEventListener('click', () => {
+          trigger.parentElement.classList.toggle('active');
+        });
+      });
+
+      updateStatus();
+
+      fetch('config.json')
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.wifiPassword !== "***") {
+            document.getElementById("security-warning").classList.remove("hide");
+          }
+        })
+        .catch((err) => console.log("Security restricted or error"));
+    }
   </script>
 </body>
-
 </html>
