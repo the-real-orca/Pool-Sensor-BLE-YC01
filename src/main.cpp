@@ -155,6 +155,8 @@ void requestReboot(String reason, uint32_t delayMs) {
   });
 }
 
+static uint32_t lastMqttRetry = 0;
+
 /**
  * @brief Handles the MQTT client loop.
  * 
@@ -162,15 +164,16 @@ void requestReboot(String reason, uint32_t delayMs) {
  * Periodically attempts to reconnect if connection is lost.
  */
 void mqttLoop() {
-  static uint32_t lastMqttRetry = 0;
+  static bool firstMqttRun = true;
   uint32_t uptime = millis() / 1000;
 
   // MQTT only active if configured, not in captive portal, not in standby and WiFi is connected
   if ( config.mqttPort && !isCaptive && !isStandby && WiFi.isConnected()) {
     if ( !mqttClient.connected() ) {
       // Periodically attempt to reconnect
-      if ( uptime - lastMqttRetry > 10 ) {
+      if ( firstMqttRun || (lastMqttRetry == 0) || (uptime - lastMqttRetry > 10) ) {
         lastMqttRetry = uptime;
+        firstMqttRun = false;
 
         // Setup client
         if ( config.mqttTLS ) {
@@ -190,7 +193,7 @@ void mqttLoop() {
         String lwtTopic = config.mqttTopic + "/availability";
         
         if ( mqttClient.connect(clientId.c_str(), config.mqttUser.c_str(), config.mqttPassword.c_str(), lwtTopic.c_str(), 1, true, "offline") ) {
-          DEBUG_println("connected");
+          DEBUG_println("MQTT-broker connected");
           mqttClient.publish(lwtTopic.c_str(), "online", true);
           mqttClient.loop();
           updateStatusJson(); // update buffer with "connected" status
@@ -465,9 +468,11 @@ void handleSerialApi() {
         Serial.println("Forcing re-scan...\n");
         config.bleAddress = "";
         lastScan = millis()/1000 - config.interval;
+        lastMqttRetry = 0; // Force MQTT reconnection attempt
       } else if (cmd == "READ") {
         Serial.println("Forcing immediate read...\n");
         lastScan = millis()/1000 - config.interval;
+        lastMqttRetry = 0; // Force MQTT reconnection attempt
       } else if (cmd == "STATUS") {
         updateStatusJson();
         Serial.println(statusJsonBuffer);
@@ -658,6 +663,10 @@ void loop()
 
       // MQTT Publishing
       if ( config.mqttPort && !isCaptive && !isStandby && WiFi.isConnected() ) {
+        if ( !mqttClient.connected() ) {
+          lastMqttRetry = 0; // Reset timer to allow immediate connection attempt in mqttLoop
+          mqttLoop();
+        }
         if ( mqttClient.connected() ) {
           if (mqttClient.publish(config.mqttTopic.c_str(), statusJsonBuffer)) {
             DEBUG_print("MQTT sent successfully: "); DEBUG_println(config.mqttTopic);

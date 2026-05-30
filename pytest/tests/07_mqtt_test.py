@@ -28,7 +28,7 @@ def test_mqtt_connection(workbench, slot, wifi_network, test_progress):
     assert result.get("matched"), "Config was not saved"
     
     test_progress("Waiting for MQTT connection log")
-    result = workbench.serial_monitor(slot=slot, pattern="MQTT-broker... ok", timeout=20)
+    result = workbench.serial_monitor(slot=slot, pattern="MQTT-broker connected", timeout=20)
     assert result.get("matched")
 
     test_progress("Verifying connection via HTTP /status")
@@ -75,7 +75,7 @@ def test_mqtt_publish(workbench, slot, wifi_network, test_progress):
     result = workbench.serial_write(slot=slot, data=f"\nSET_CONFIG {json.dumps(config)}\n", pattern="Config saved successfully.", timeout=15)
     assert result.get("matched"), "Config was not saved"
     
-    result = workbench.serial_monitor(slot=slot, pattern="MQTT-broker... ok", timeout=20)
+    result = workbench.serial_monitor(slot=slot, pattern="MQTT-broker connected", timeout=20)
     assert result.get("matched")    
 
     test_progress("Subscribing to topic on workbench")
@@ -137,7 +137,7 @@ def test_mqtt_reconnection_after_loss(workbench, slot, wifi_network, test_progre
     result = workbench.serial_write(slot=slot, data=f"\nSET_CONFIG {json.dumps(config)}\n", pattern="Config saved successfully.", timeout=15)
     assert result.get("matched")
     
-    result = workbench.serial_monitor(slot=slot, pattern="MQTT-broker... ok", timeout=25)
+    result = workbench.serial_monitor(slot=slot, pattern="MQTT-broker connected", timeout=25)
     assert result.get("matched")
     
     # Get ESP IP
