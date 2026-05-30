@@ -4,8 +4,6 @@ Usage:
     pytest test_instrument.py --wt-url http://<pi-ip>:8080
 """
 
-from lib2to3.fixes import fix_print
-from lib2to3.fixes import fix_print
 import os
 import uuid
 import json
