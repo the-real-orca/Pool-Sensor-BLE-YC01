@@ -5,9 +5,14 @@
 .vscode/launch.json
 .vscode/ipch
 .gemini
+GEMINI.md
+volumes/opencode/.opencode
 Thumbs.db
 /src/data/config.json
 /log/session*.md
 __pycache__/
 *.pyc
 .pytest_cache/
+todo.txt
+/skills-lock.json
+/.gemini_root
