@@ -72,6 +72,25 @@
 
     <div class="card">
       <div class="collapsible">
+        <div class="collapsible-trigger"><h2 style="display:inline; border:none; margin:0; padding:0; color:inherit;">Controls</h2></div>
+        <div class="collapsible-content">
+          <div class="flex-center" style="flex-direction: column; gap: 1rem;">
+            <div class="flex-center">
+              <button name="read" id="btn_read" class="button button-primary">Read Sensor</button>
+              <button name="scan" id="btn_scan" class="button button-outline">Re-scan BLE</button>
+            </div>
+            <div class="flex-center">
+              <a href="config" class="button button-outline">Configuration</a>
+              <a href="update" class="button button-outline">OTA Update</a>
+              <button name="reboot" id="btn_reboot" class="button button-danger">Reboot</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="collapsible">
         <div class="collapsible-trigger"><h2 style="display:inline; border:none; margin:0; padding:0; color:inherit;">System Status</h2></div>
         <div class="collapsible-content">
           <div class="status-list">
@@ -98,25 +117,6 @@
             <div class="status-row">
               <span class="label">Reset Reason</span>
               <span class="value" id="msg_resetReason">--</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="collapsible">
-        <div class="collapsible-trigger"><h2 style="display:inline; border:none; margin:0; padding:0; color:inherit;">Controls</h2></div>
-        <div class="collapsible-content">
-          <div class="flex-center" style="flex-direction: column; gap: 1rem;">
-            <div class="flex-center">
-              <button name="read" id="btn_read" class="button button-primary">Read Sensor</button>
-              <button name="scan" id="btn_scan" class="button button-outline">Re-scan BLE</button>
-            </div>
-            <div class="flex-center">
-              <a href="config" class="button button-outline">Configuration</a>
-              <a href="update" class="button button-outline">OTA Update</a>
-              <button name="reboot" id="btn_reboot" class="button button-danger">Reboot</button>
             </div>
           </div>
           

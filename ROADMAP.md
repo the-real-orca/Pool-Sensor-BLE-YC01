@@ -29,13 +29,7 @@ This document consolidates the project's tasks and roadmap, providing a prioriti
 ## Phase 3: Feature Enhancement & Connectivity (Medium Priority)
 - [x] **Enhance MQTT Robustness:** Improve MQTT connection handling and error reporting in the web status. 
         -> Centralized reconnection logic, unique ClientID, Last Will and Testament support, and detailed state reporting implemented.
-@TODO: test fail
-        FAILED tests/07_mqtt_test.py::test_mqtt_connection - AssertionError: assert False
-        FAILED tests/07_mqtt_test.py::test_mqtt_publish - AssertionError: assert False
-        FAILED tests/07_mqtt_test.py::test_mqtt_reconnection_after_loss - AssertionError: assert False
-
-
-- [ ] **Web UI Optimization:** Improve the file upload process and provide more system information.
+- [x] **Web UI Optimization:** Improve the file upload process and provide more system information.
 - [ ] **BLE Reading Improvements:** Improve error reporting when connection or decoding fails, and address potential thread-safety issues in `decodeData`.
 - [ ] **Advanced BLE Diagnostics:** Add more logging for BLE connection and decoding steps.
 - [ ] **Threshhold detection:** Implement min / max thresholds for PH, Chlorine, ORP, Temperature and battery voltage
