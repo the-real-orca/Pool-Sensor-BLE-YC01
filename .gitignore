@@ -6,7 +6,7 @@
 .vscode/ipch
 .gemini
 GEMINI.md
-volumes/opencode/.opencode
+volumes/
 Thumbs.db
 /src/data/config.json
 /log/session*.md
@@ -15,5 +15,4 @@ __pycache__/
 .pytest_cache/
 todo.txt
 /skills-lock.json
-/.gemini_root
-/serure.rest
+/secure.rest

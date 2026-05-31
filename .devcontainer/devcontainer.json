@@ -20,9 +20,9 @@
 
 	// Mounts for opencode as directories
 	"mounts": [
-		"source=${localWorkspaceFolder}/volumes/opencode/.opencode/config,target=/home/vscode/.config/opencode,type=bind",
-		"source=${localWorkspaceFolder}/volumes/opencode/.opencode/data,target=/home/vscode/.local/share/opencode,type=bind",
-		"source=${localWorkspaceFolder}/volumes/opencode/.opencode/cache,target=/home/vscode/.cache/opencode,type=bind"
+		"source=${localWorkspaceFolder}/volumes/.opencode/config,target=/home/vscode/.config/opencode,type=bind",
+		"source=${localWorkspaceFolder}/volumes/.opencode/data,target=/home/vscode/.local/share/opencode,type=bind",
+		"source=${localWorkspaceFolder}/volumes/.opencode/cache,target=/home/vscode/.cache/opencode,type=bind"
 	],
 
 	"containerEnv": {
@@ -46,7 +46,9 @@
 				"shd101wyy.markdown-preview-enhanced",
 				"rpdswtk.vsmqtt",
 				"humao.rest-client",
-				"mechatroner.rainbow-csv"
+				"mechatroner.rainbow-csv",
+				"platformio.platformio-ide",
+				"yandeu.five-server"
 			]
 		}
 	}
