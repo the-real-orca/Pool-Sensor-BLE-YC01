@@ -269,6 +269,15 @@ body {
   margin-bottom: 1rem;
 }
 
+.config-group-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.config-group-row .config-group {
+  flex: 1;
+}
+
 .config-group label {
   display: block;
   font-weight: 600;

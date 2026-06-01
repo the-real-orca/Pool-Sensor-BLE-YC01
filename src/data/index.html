@@ -17,6 +17,10 @@
       <p>DEBUG_SECURITY is enabled. Configuration is exposed.</p>
     </div>
 
+    <div id="battery-alert" class="card hide" style="border: 2px solid var(--danger); background: rgba(239, 68, 68, 0.1); text-align: center;">
+      <h2 style="color: var(--danger); border-bottom: none; margin-bottom: 0;">⚠️ Battery Warning ⚠️</h2>
+    </div>
+
     <div class="card">
       <h2 id="msg_name" style="margin-bottom: 0.25rem;">Sensor Data</h2>
       <div class="status-info" style="margin-bottom: 1.5rem; text-align: center;">Measured: <span id="msg_datetime">--</span></div>
@@ -25,19 +29,19 @@
         <div class="main-item">
           <span class="sensor-label">Temperature</span>
           <span class="sensor-value"><span id="msg_temp">--</span><span class="sensor-unit">&deg;C</span></span>
-          <div class="status-info">Target: 20 - 33 &deg;C</div>
+          <div class="status-info">Target: <span id="target_temp">20 - 33</span> &deg;C</div>
         </div>
         
         <div class="main-item">
           <span class="sensor-label">pH Level</span>
           <span class="sensor-value" id="msg_pH">--</span>
-          <div class="status-info">Target: 7.2 - 7.6</div>
+          <div class="status-info">Target: <span id="target_pH">7.2 - 7.6</span></div>
         </div>
 
         <div class="main-item">
           <span class="sensor-label">Chlorine</span>
           <span class="sensor-value"><span id="msg_cl">--</span><span class="sensor-unit">mg/l</span></span>
-          <div class="status-info">Target: 0.4 - 1.0 mg/l</div>
+          <div class="status-info">Target: <span id="target_cl">0.4 - 1.0</span> mg/l</div>
         </div>
       </div>
 
@@ -154,6 +158,20 @@
               el.textContent = data[key];
             }
           }
+          if (data.alerts) {
+            if (data.alerts.bat) {
+              document.getElementById("battery-alert").classList.remove("hide");
+            } else {
+              document.getElementById("battery-alert").classList.add("hide");
+            }
+            for (var key in data.alerts) {
+              var el = document.getElementById("msg_" + key);
+              if (el) {
+                el.style.color = data.alerts[key] ? "var(--danger)" : "";
+                el.style.fontWeight = data.alerts[key] ? "bold" : "";
+              }
+            }
+          }
           if (data.time) {
             const timeStr = new Date(data.time * 1000).toLocaleString();
             document.getElementById("datetime").textContent = timeStr;
@@ -187,6 +205,11 @@
         .then((data) => {
           if (data.wifiPassword !== "***") {
             document.getElementById("security-warning").classList.remove("hide");
+          }
+          if (data.thresholds) {
+            document.getElementById("target_temp").textContent = data.thresholds.tempMin + " - " + data.thresholds.tempMax;
+            document.getElementById("target_pH").textContent = data.thresholds.phMin + " - " + data.thresholds.phMax;
+            document.getElementById("target_cl").textContent = data.thresholds.clMin + " - " + data.thresholds.clMax;
           }
         })
         .catch((err) => console.log("Security restricted or error"));

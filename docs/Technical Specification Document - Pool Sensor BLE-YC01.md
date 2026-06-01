@@ -84,7 +84,6 @@ struct sensorReadings_t {
     float temp;
     float bat;
 };
-```
 #### config_t
 ```cpp
 typedef struct {
@@ -98,11 +97,34 @@ typedef struct {
   String mqttTopic, mqttUser, mqttPassword;
   uint16_t interval;
   String name, address;
+  thresholds_t thresholds;
 } config_t;
+```
+
+#### thresholds_t
+```cpp
+typedef struct {
+  float phMin, phMax;
+  float clMin, clMax;
+  float tempMin, tempMax;
+  uint16_t batMin, batMax;
+} thresholds_t;
 ```
 
 ### 3.3 Network Communication
 - **MQTT:** Publishes to the configured topic every `interval` seconds. JSON payload includes all sensor readings and system status.
+- **Alerts:** If a sensor reading drifts outside the configured thresholds, a dedicated alert JSON is published to `<baseTopic>/alert`. A recovery message is sent when the value returns to the normal range.
+    ```json
+    {
+      "alert": true,
+      "type": "pH",
+      "value": 6.5,
+      "min": 7.2,
+      "max": 7.6,
+      "text": "Alert: pH too low"
+    }
+    ```
+- **Standby Mode:** ...
 - **Standby Mode:** If WiFi is disconnected for more than `wifiTimeout` seconds, or if the `OFFLINE` serial command is issued, the device enters a non-blocking **Standby Mode**. In this mode, WiFi and Access Point are disabled, but BLE scanning and serial commands remain active. The system periodically attempts a WiFi reconnection every 60 seconds until successful.
 - **Captive Portal:** Initiated if initial WiFi connection fails or is configured incorrectly. After a `portalTimeout`, the portal disables the AP and transitions to **Standby Mode** instead of rebooting.
 - **HTTP:** REST-like API for commands (`/cmd`), status (`/status`), and configuration (`/config.json`).

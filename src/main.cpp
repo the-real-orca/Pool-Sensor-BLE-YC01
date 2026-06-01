@@ -45,6 +45,71 @@ static String lastStatus = "init";
 static String lastBleAddress = "";
 static String lastSensorType = "unknown";
 
+// Alert states
+static bool phAlertActive = false;
+static bool clAlertActive = false;
+static bool tempAlertActive = false;
+static bool batAlertActive = false;
+
+/**
+ * @brief Checks a single value against thresholds and sends MQTT alert if necessary.
+ */
+void checkParameter(const char* type, float value, float min, float max, bool &alertActive, const char* unit) {
+  bool outOfRange = (value < min || value > max);
+  
+  if (outOfRange && !alertActive) {
+    // New Alert
+    alertActive = true;
+    DEBUG_printf("ALERT: %s value %.2f %s is out of range (%.2f - %.2f)\n", type, value, unit, min, max);
+    
+    if (mqttClient.connected()) {
+      JsonDocument doc;
+      doc["alert"] = true;
+      doc["type"] = type;
+      doc["value"] = value;
+      doc["min"] = min;
+      doc["max"] = max;
+      String text = "Alert: " + String(type) + " ";
+      text += (value < min) ? "too low" : "too high";
+      doc["text"] = text;
+      
+      char buf[256];
+      serializeJson(doc, buf);
+      mqttClient.publish((config.mqttTopic + "/alert").c_str(), buf);
+    }
+  } else if (!outOfRange && alertActive) {
+    // Recovery
+    alertActive = false;
+    DEBUG_printf("RECOVERY: %s value %.2f %s is back in range\n", type, value, unit);
+    
+    if (mqttClient.connected()) {
+      JsonDocument doc;
+      doc["alert"] = false;
+      doc["type"] = type;
+      doc["value"] = value;
+      doc["min"] = min;
+      doc["max"] = max;
+      doc["text"] = "Recovery: " + String(type) + " back in range";
+      
+      char buf[256];
+      serializeJson(doc, buf);
+      mqttClient.publish((config.mqttTopic + "/alert").c_str(), buf);
+    }
+  }
+}
+
+/**
+ * @brief Checks all sensor readings against thresholds.
+ */
+void checkThresholds() {
+  if (!lastReadings.type) return;
+
+  checkParameter("temp", lastReadings.temp, config.thresholds.tempMin, config.thresholds.tempMax, tempAlertActive, "°C");
+  checkParameter("pH", lastReadings.pH, config.thresholds.phMin, config.thresholds.phMax, phAlertActive, "");
+  checkParameter("cl", lastReadings.cl, config.thresholds.clMin, config.thresholds.clMax, clAlertActive, "mg/L");
+  checkParameter("bat", (float)lastReadings.bat, (float)config.thresholds.batMin, (float)config.thresholds.batMax, batAlertActive, "mV");
+}
+
 /**
  * @brief Returns a human-readable string for the MQTT client state.
  * @param state int result of mqttClient.state()
@@ -100,7 +165,6 @@ void updateStatusJson() {
   doc["wifiRSSI"] = (isCaptive || isStandby) ? 0 : WiFi.RSSI();
   doc["wifiIP"] = isCaptive ? WiFi.softAPIP().toString() : (isStandby ? "0.0.0.0" : WiFi.localIP().toString());
   doc["mqttServer"] = config.mqttServer;
-  doc["mqttConnected"] = mqttClient.connected();
   doc["mqttState"] = getMqttStateName(mqttClient.state());
   doc["isStandby"] = isStandby;
   doc["resetReason"] = resetReason;
@@ -268,6 +332,17 @@ void readConfig()
   config.interval = doc["interval"] | 900;
   config.name = doc["name"] | "";
   config.bleAddress = doc["bleAddress"] | "";
+
+  // Thresholds
+  config.thresholds.phMin = doc["thresholds"]["phMin"] | 0.0f;
+  config.thresholds.phMax = doc["thresholds"]["phMax"] | 14.0f;
+  config.thresholds.clMin = doc["thresholds"]["clMin"] | 0.0f;
+  config.thresholds.clMax = doc["thresholds"]["clMax"] | 10.0f;
+  config.thresholds.tempMin = doc["thresholds"]["tempMin"] | 0.0f;
+  config.thresholds.tempMax = doc["thresholds"]["tempMax"] | 50.0f;
+  config.thresholds.batMin = doc["thresholds"]["batMin"] | 0;
+  config.thresholds.batMax = doc["thresholds"]["batMax"] | 5000;
+
   file.close();
 
 
@@ -295,6 +370,11 @@ void readConfig()
   DEBUG_print("  interval: "); DEBUG_println(config.interval);
   DEBUG_print("  name: "); DEBUG_println(config.name);
   DEBUG_print("  address: "); DEBUG_println(config.bleAddress);
+  DEBUG_printf("  Thresholds: pH %.1f-%.1f, Cl %.1f-%.1f, Temp %.1f-%.1f, Bat %d-%d\n",
+               config.thresholds.phMin, config.thresholds.phMax,
+               config.thresholds.clMin, config.thresholds.clMax,
+               config.thresholds.tempMin, config.thresholds.tempMax,
+               config.thresholds.batMin, config.thresholds.batMax);
   DEBUG_println("");
 }
 
@@ -319,7 +399,18 @@ void saveConfig() {
   doc["mqttPassword"]   = config.mqttPassword;
   doc["interval"]       = config.interval;
   doc["name"]           = config.name;
-  doc["bleAddress"]           = config.bleAddress;
+  doc["bleAddress"]     = config.bleAddress;
+
+  // Thresholds
+  JsonObject thresh = doc["thresholds"].to<JsonObject>();
+  thresh["phMin"] = config.thresholds.phMin;
+  thresh["phMax"] = config.thresholds.phMax;
+  thresh["clMin"] = config.thresholds.clMin;
+  thresh["clMax"] = config.thresholds.clMax;
+  thresh["tempMin"] = config.thresholds.tempMin;
+  thresh["tempMax"] = config.thresholds.tempMax;
+  thresh["batMin"] = config.thresholds.batMin;
+  thresh["batMax"] = config.thresholds.batMax;
 
   // write config file
   File file = LittleFS.open("/config.json", "w");
@@ -684,6 +775,7 @@ void loop()
           lastSensorType = device.getSensorType();
           lastReadings = readings;
           found = true;
+          checkThresholds();
           if (config.bleAddress.isEmpty()) {
             config.bleAddress = lastBleAddress; // save address of first successful read when no address configured
           }

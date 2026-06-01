@@ -34,26 +34,12 @@ This document consolidates the project's tasks and roadmap, providing a prioriti
         -> Fixed: NimBLEDevice::init() nur noch einmalig in setup(), readData() erkennt Service/Char-Fehler korrekt, decodeData nutzt lokalen Buffer, erweitertes Error-Logging.
 - [x] **Advanced BLE Diagnostics:** Add more logging for BLE connection and decoding steps.
         -> Scan-Callback loggt reason/Anzahl, readData() loggt jeden Fehlerschritt, Zustandsmaschine loggt Device-Adressen. Reduzierte Verbose-Ausgabe für Routine-Abfragen implementiert.
-- [ ] **Threshhold detection:** Implement min / max thresholds for PH, Chlorine, ORP, Temperature and battery voltage
-        - plan implementation and update Roadmap, FSD, TSD and tests accordingly
-        - add limits to config and web ui
-        - allert on web ui, serial if value outside threshold
-        - add multiple testcases for each value (min, max, normal,recovery from min/max)
-        - send alert via mqtt if value outside threshold and on recovery
-             {
-                alert: true,
-                type: "temp",
-                value: 5,
-                min: 10,
-                max: 35,
-                text: "Alert:Temperature too low"
-             }
-        - draft concept for email alerts if value outside threshold and on recovery or missing heartbeat (status message missing for X minutes)
-             Send daily status summary via email (default 9am local time)
-              - include min / max values for all values since last summary
-              - trend since last summary
-              - alert on deviation from threshold or missing heartbeat
-              - status: normal, warning, critical, offline
+- [x] **Threshhold detection:** Implement min / max thresholds for PH, Chlorine, ORP, Temperature and battery voltage
+        -> Implementation complete: logic in main.cpp, settings in config.json/Web UI, dynamic highlighting in dashboard, and MQTT alerts via /alert topic.
+- [ ] **Email alerts:** Implement email notification system based on [Email Alerts Concept](docs/Email%20Alerts%20Concept.md)
+        - setup MQTT-to-Email bridge (Backend)
+        - add Email settings to Web UI
+        - implement heartbeat monitoring and daily summary task in Backend
 
 
 

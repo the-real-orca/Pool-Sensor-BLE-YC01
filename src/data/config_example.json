@@ -13,5 +13,15 @@
     "mqttTLS": false,
     "mqttTopic": "/esp32/sensor/ble-yc01",
     "mqttUser": "user",
-    "mqttPassword": ""
+    "mqttPassword": "",
+    "thresholds": {
+        "phMin": 6.8,
+        "phMax": 7.6,
+        "clMin": 0.5,
+        "clMax": 1.5,
+        "tempMin": 20.0,
+        "tempMax": 30.0,
+        "batMin": 3300,
+        "batMax": 4500
+    }
 }

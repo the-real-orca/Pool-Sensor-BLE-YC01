@@ -18,6 +18,14 @@
   #define DEBUG_printf(...)
 #endif
 
+// Threshold configurations
+typedef struct {
+  float phMin, phMax;
+  float clMin, clMax;
+  float tempMin, tempMax;
+  uint16_t batMin, batMax;
+} thresholds_t;
+
 /*
  * config structure
  */
@@ -40,6 +48,8 @@ typedef struct {
   uint16_t interval;
   String name;
   String bleAddress;
+// Thresholds
+  thresholds_t thresholds;
 
 } config_t;
 extern config_t config;
@@ -90,6 +100,17 @@ void serializeConfig(TDestination& destination, bool pretty = false)
 
     // BLE
     doc["bleAddress"]     = config.bleAddress;
+
+    // Thresholds
+    JsonObject thresh = doc["thresholds"].to<JsonObject>();
+    thresh["phMin"] = config.thresholds.phMin;
+    thresh["phMax"] = config.thresholds.phMax;
+    thresh["clMin"] = config.thresholds.clMin;
+    thresh["clMax"] = config.thresholds.clMax;
+    thresh["tempMin"] = config.thresholds.tempMin;
+    thresh["tempMax"] = config.thresholds.tempMax;
+    thresh["batMin"] = config.thresholds.batMin;
+    thresh["batMax"] = config.thresholds.batMax;
 
 
     if (pretty)
