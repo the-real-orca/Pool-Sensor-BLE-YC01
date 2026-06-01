@@ -1,6 +1,12 @@
+# Unicersal Workbench REST API
+
+## Workbench
+
 ### Ping Workbench
 GET http://esp32-workbench.home:8080/api/wifi/ping
 
+
+## WIFI
 
 ### Scan WIFI
 GET http://esp32-workbench.home:8080/api/wifi/scan
@@ -27,8 +33,6 @@ Content-Type: application/json
 "channel":6
 }
 
-
-
 ### WiFi Drain Events
 POST http://esp32-workbench.home:8080/api/wifi/events/drain 
 
@@ -42,6 +46,8 @@ Content-Type: application/json
 "timeout":10
 }
 
+
+## Serial
 
 ### Serial Monitor
 POST http://esp32-workbench.home:8080/api/serial/monitor
@@ -65,7 +71,16 @@ Content-Type: application/json
 }
 
 
+### Serial set BLE Address
+POST http://esp32-workbench.home:8080/api/serial/write
+Content-Type: application/json
 
+{
+"slot":"SLOT1",
+"data":"\nSET_ADDRESS c0:00:00:03:79:5b\n"
+}
+
+## MQTT
 
 ### MQQT Status
 http://esp32-workbench.home:8080/api/mqtt/status
@@ -107,4 +122,99 @@ Content-Type: application/json
 
 ### Stop broker
 POST http://esp32-workbench.home:8080/api/mqtt/stop
+
+
+## Bluetooth LE
+
+
+### BLE Status
+GET http://esp32-workbench.home:8080/api/ble/status
+
+
+### BLE Scan
+POST http://esp32-workbench.home:8080/api/ble/scan
+Content-Type: application/json
+
+{
+  "timeout": 10
+}
+
+### BLE Scan with Name Filter
+POST http://esp32-workbench.home:8080/api/ble/scan
+Content-Type: application/json
+
+{
+  "timeout": 10,
+  "name_filter":"BLE-YC01"
+}
+
+
+### BLE Connect: BLE-YC01
+POST http://esp32-workbench.home:8080/api/ble/connect
+Content-Type: application/json
+
+{
+  "address":"C0:00:00:03:79:5B"
+}
+
+### BLE Disconnect: BLE-YC01
+POST http://esp32-workbench.home:8080/api/ble/disconnect
+
+
+### BLE Read Characteristic
+POST http://esp32-workbench.home:8080/api/ble/read
+Content-Type: application/json
+
+{
+  "characteristic": "0000ff02-0000-1000-8000-00805f9b34fb"
+}
+
+### Response
+
+HTTP/1.0 200 OK
+Server: BaseHTTP/0.6 Python/3.13.5
+Date: Sun, 31 May 2026 21:42:41 GMT
+Content-Type: application/json
+Access-Control-Allow-Origin: *
+Content-Length: 152
+
+{
+  "ok": true,
+  "characteristic": "0000ff02-0000-1000-8000-00805f9b34fb",
+  "data": "ffa1fe5afebaffffffffffeaff5fff04fafc35feaeffeaffffffffd550",
+  "size": 29
+}
+
+
+### Generic Access Service
+POST http://esp32-workbench.home:8080/api/ble/read
+Content-Type: application/json
+
+{
+  "characteristic": "00002a01-0000-1000-8000-00805f9b34fb"
+}
+
+### Response
+
+HTTP/1.0 500 Internal Server Error
+Server: BaseHTTP/0.6 Python/3.13.5
+Date: Sun, 31 May 2026 21:43:35 GMT
+Content-Type: application/json
+Access-Control-Allow-Origin: *
+Content-Length: 105
+
+{
+  "ok": false,
+  "error": "read failed: Characteristic 00001800-0000-1000-8000-00805f9b34fb was not found!"
+}
+
+
+### BLE Write Characteristic
+POST http://esp32-workbench.home:8080/api/ble/write
+Content-Type: application/json
+
+{
+  "characteristic": "0000ff02-0000-1000-8000-00805f9b34fb",
+  "data": "01"
+}
 
