@@ -83,10 +83,10 @@ The system follows a modular architecture:
 ## 4. Functional Requirements
 
 ### 4.1 Sensor Data Acquisition (FR-001)
-The system must retrieve raw data from the BLE-YC01 sensor.
-- **Trigger:** Configured time interval (default 900s) or manual trigger via web command.
-- **Behavior:** Scans for the device address, connects to the specific service/characteristic, and reads the 17-byte data packet.
-- **Expected Result:** A raw byte array is available for decoding.
+The system must retrieve raw data from the BLE-YC01 sensor with high reliability.
+- **Trigger:** Configured time interval (default 900s) or manual trigger via web/serial command.
+- **Behavior:** Performs an asynchronous BLE scan to discover the sensor, identifies the correct address type (Public/Random), and establishes a connection to the specific service/characteristic to read the 17-byte data packet. If the sensor is not found in the scan but an address is known, it attempts a direct connection with automatic address type switching.
+- **Expected Result:** A raw byte array is successfully retrieved and made available for decoding.
 
 ### 4.2 Proprietary Data Decoding (FR-002)
 The system must decode the proprietary 17-byte format into human-readable values.

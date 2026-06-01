@@ -91,28 +91,33 @@ class MyScanCallbacks : public NimBLEScanCallbacks {
         String addr = device->getAddress().toString().c_str();
         String name = device->getName().c_str();
         bool hasService = device->isAdvertisingService(serviceUUID);
+        bool hasName = (name == targetName.c_str());
         int rssi = device->getRSSI();
 
-        Serial.printf("BLE[%s] name=\"%s\" rssi=%d service=%d\n",
-                      addr.c_str(), name.c_str(), rssi, hasService);
-
-        // Collect all devices; YC01 may not advertise its service UUID
-        bool alreadyFound = false;
-        for (const auto& a : foundDevices) {
-            if (a == device->getAddress()) {
-                alreadyFound = true;
-                break;
+        if (hasService || hasName) {
+            if (config.bleAddress.isEmpty()) {
+                Serial.printf("CANDIDATE[%s] name=\"%s\" rssi=%d service=%d\n",
+                              addr.c_str(), name.c_str(), rssi, hasService);
             }
-        }
-        if (!alreadyFound) {
-            foundDevices.push_back(device->getAddress());
+
+            bool alreadyFound = false;
+            for (const auto& a : foundDevices) {
+                if (a == device->getAddress()) {
+                    alreadyFound = true;
+                    break;
+                }
+            }
+            if (!alreadyFound) {
+                foundDevices.push_back(device->getAddress());
+            }
         }
     }
 
     void onScanEnd(const NimBLEScanResults &results, int reason) {
         scanningActive = false;
-        Serial.printf("Scan complete. reason=%d total=%d candidates=%d\n",
-                      reason, results.getCount(), foundDevices.size());
+        if (config.bleAddress.isEmpty()) {
+            Serial.printf("Scan complete. candidates=%d\n", foundDevices.size());
+        }
     }
 };
 
@@ -125,9 +130,10 @@ bool BLE_YC01::startScan(uint32_t durationMs) {
     scanningActive = true;
     
     NimBLEScan *pScan = NimBLEDevice::getScan();
+    pScan->clearResults(); // Clear previous results to free memory
     pScan->setScanCallbacks(&scanCallbacks);
-    pScan->setInterval(45);
-    pScan->setWindow(15);
+    pScan->setInterval(100);
+    pScan->setWindow(100);
     pScan->setActiveScan(true);
     
     // NimBLE 2.5: start() passes duration directly to ble_gap_disc (expects milliseconds)
@@ -174,20 +180,38 @@ bool BLE_YC01::readData() {
         return false;
     }
 
-    client->setConnectTimeout(5); // fast fail on unreachable devices
+    client->setConnectTimeout(10000); // 10 seconds in milliseconds (NimBLE 2.x)
     bool result = false;
     uint8_t retryCount = 0;
+    
+    // Initial address type from scan
+    uint8_t addrType = this->address.getType();
+    
     do
     {
         esp_task_wdt_reset();
         result = false;
 
+        if (config.bleAddress.isEmpty()) {
+            DEBUG_printf("BLE readData: connecting to %s (type %d), attempt %d\n", 
+                         this->address.toString().c_str(), addrType, retryCount + 1);
+        }
+
         if ( !client->connect(this->address) ) {
-            DEBUG_printf("readData: connect failed (attempt %d)\n", retryCount + 1);
+            DEBUG_printf("BLE readData: connect failed\n");
+            
+            // If it failed with the current type, try the other type on the next retry
+            addrType = (addrType == BLE_ADDR_PUBLIC) ? BLE_ADDR_RANDOM : BLE_ADDR_PUBLIC;
+            this->address = NimBLEAddress(this->address.toString(), addrType);
+            
             retryCount++;
+            delay(100);
             continue;
         }
 
+        if (config.bleAddress.isEmpty()) {
+            DEBUG_println("BLE readData: connected, discovering services...");
+        }
         this->sensorType = "";
         NimBLERemoteService* service;
         service = client->getService("1800");
@@ -200,7 +224,7 @@ bool BLE_YC01::readData() {
 
         service = client->getService(serviceUUID);
         if ( !service ) {
-            DEBUG_println("readData: sensor service (ff01) not found");
+            DEBUG_println("BLE readData: sensor service (ff01) not found");
             retryCount++;
             client->disconnect();
             continue;
@@ -208,7 +232,7 @@ bool BLE_YC01::readData() {
 
         NimBLERemoteCharacteristic *pCharacteristic = service->getCharacteristic(charUUID);
         if ( !pCharacteristic ) {
-            DEBUG_println("readData: sensor characteristic (ff02) not found");
+            DEBUG_println("BLE readData: sensor characteristic (ff02) not found");
             retryCount++;
             client->disconnect();
             continue;
@@ -219,7 +243,7 @@ bool BLE_YC01::readData() {
 
         uint8_t decodedData[60];
         if ( !decodeData((uint8_t*)value.data(), length, decodedData) ) {
-            DEBUG_println("readData: failed to decode data");
+            DEBUG_println("BLE readData: failed to decode data");
             retryCount++;
             client->disconnect();
             continue;
@@ -227,7 +251,7 @@ bool BLE_YC01::readData() {
 
         uint8_t chksum = checksum(decodedData, length-1);
         if (chksum != decodedData[length-1]) {
-            DEBUG_println("readData: checksum mismatch");
+            DEBUG_println("BLE readData: checksum mismatch");
             retryCount++;
             client->disconnect();
             continue;

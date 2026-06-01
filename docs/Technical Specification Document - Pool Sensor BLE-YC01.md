@@ -26,10 +26,20 @@ The system consists of an ESP32 microcontroller communicating with a BLE-YC01 se
 ### 3.1 BLE Protocol
 - **Service UUID:** `0000ff01-0000-1000-8000-00805f9b34fb`
 - **Characteristic UUID:** `0000ff02-0000-1000-8000-00805f9b34fb`
+- **Scan Parameters:** Uses a 100% duty cycle for maximum reliability (`setInterval(100)`, `setWindow(100)`).
+- **Address Types:** Supports both **Public** and **Static Random** BLE addresses. The system automatically detects and retries the correct type during connection.
 - **Data Format:** Proprietary 17-byte format.
 - **Decoding Algorithm:** Uses bitwise XOR/reversal and checksum verification to extract 6 measurements (pH, EC, Salt, TDS, ORP, Chlorine, Temp).
 
-#### 3.1.1 BLE Decoding Algorithm
+#### 3.1.1 BLE Discovery and Connection
+The system follows a robust "Scan-then-Connect" architecture:
+1. **Always Scan:** A 5-second scan is performed even if a device address is configured. This ensures the device is awake and its current address type is known.
+2. **Filtering:** During scanning, only devices matching the YC01 Service UUID or Name are considered candidates.
+3. **Direct Fallback:** If a configured address is not found during the scan, the system attempts a direct connection.
+4. **Dual-Type Retry:** Connection attempts automatically cycle through Public and Random address types to ensure compatibility with different sensor variants.
+5. **Connect-Read-Disconnect:** To save energy and improve stack stability, the connection is closed immediately after data is successfully read.
+
+#### 3.1.2 BLE Decoding Algorithm
 The raw 17-byte data received from the BLE-YC01 sensor via characteristic `0000ff02-0000-1000-8000-00805f9b34fb` undergoes a proprietary decoding process.
 
 **1. Proprietary Bitwise Transformation (`decodeData` function):**
@@ -226,7 +236,7 @@ To ensure non-blocking operation and responsiveness of the Web UI and Serial API
 | State | Description |
 | :--- | :--- |
 | `BLE_IDLE` | Waiting for the next measurement interval. |
-| `BLE_START_SCAN` | Initiates an asynchronous NimBLE scan (3 seconds duration). |
+| `BLE_START_SCAN` | Initiates an asynchronous NimBLE scan (5 seconds duration). |
 | `BLE_SCANNING` | Scan is running in the background. System remains responsive to other tasks. |
 | `BLE_PROCESS_RESULTS` | Scan results are analyzed, devices are connected/read, and data is published via MQTT. |
 

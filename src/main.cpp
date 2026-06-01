@@ -23,6 +23,7 @@ config_t config;
 static char statusJsonBuffer[BUFFER_SIZE];
 #define LED_PIN 2
 static uint32_t lastScan = 0;
+static uint32_t lastData = 0;
 String resetReason;
 
 // wifi
@@ -416,6 +417,7 @@ void setup()
 
   // reset BLE scan
   lastScan = -config.interval;
+  lastData = 0;
 
   // configure status LED
   pinMode(LED_PIN, OUTPUT);
@@ -625,14 +627,11 @@ void loop()
       break;
 
     case BLE_START_SCAN:
-      if (!config.bleAddress.isEmpty()) {
-        DEBUG_printf("Known address %s, skipping scan, connecting directly...\n", config.bleAddress.c_str());
-        bleState = BLE_PROCESS_RESULTS;
-        break;
+      if (config.bleAddress.isEmpty()) {
+        DEBUG_printf("Scanning for BLE devices (5s)...\n");
       }
-      DEBUG_printf("Scanning for BLE devices (addr=any, 30s)...\n");
       digitalWrite(LED_PIN, HIGH);
-      if (BLE_YC01::startScan(30000)) {
+      if (BLE_YC01::startScan(5000)) {
         bleState = BLE_SCANNING;
       } else {
         DEBUG_println("Failed to start BLE scan");
@@ -645,22 +644,19 @@ void loop()
     case BLE_SCANNING:
       if (!BLE_YC01::isScanning()) {
         bleState = BLE_PROCESS_RESULTS;
-      } else {
-        static uint32_t lastScanLog = 0;
-        if (uptime - lastScanLog >= 1) {
-          lastScanLog = uptime;
-          DEBUG_println("Scanning...");
-        }
       }
       break;
 
     case BLE_PROCESS_RESULTS: {
+      delay(200); // Allow BLE stack to settle after scan
       auto list = BLE_YC01::getFoundDevices();
       bool found = false;
 
-      DEBUG_printf("BLE scan complete: %d device(s) found\n", list.size());
-      for (const auto& addr : list) {
-        DEBUG_printf("  candidate: %s\n", addr.toString().c_str());
+      if (config.bleAddress.isEmpty()) {
+        DEBUG_printf("BLE processing results: %d candidate(s) found\n", (int)list.size());
+        for (const auto& addr : list) {
+          DEBUG_printf("  target: %s\n", addr.toString().c_str());
+        }
       }
 
       int candidatesTried = 0;
@@ -669,11 +665,12 @@ void loop()
         String addrStr = addr.toString().c_str();
 
         if ( !config.bleAddress.isEmpty() && !compareBLEAddress(addr, config.bleAddress) ) {
-          DEBUG_printf("  skip %s (addr mismatch)\n", addrStr.c_str());
           continue;
         }
 
-        DEBUG_printf("Connecting to %s...\n", addrStr.c_str());
+        if (config.bleAddress.isEmpty()) {
+          DEBUG_printf("Connecting to %s...\n", addrStr.c_str());
+        }
         BLE_YC01 device(addr, config.name);
         sensorReadings_t readings = {0};
         if ( device.readData() ) {
@@ -687,6 +684,9 @@ void loop()
           lastSensorType = device.getSensorType();
           lastReadings = readings;
           found = true;
+          if (config.bleAddress.isEmpty()) {
+            config.bleAddress = lastBleAddress; // save address of first successful read when no address configured
+          }
           break;
         } else {
           DEBUG_println("  not a YC01 sensor, trying next...");
@@ -706,27 +706,53 @@ void loop()
       if (!found && !config.bleAddress.isEmpty()) {
         // Address configured but not in scan → try direct connection
         DEBUG_printf("Address %s not in scan, trying direct connection...\n", config.bleAddress.c_str());
-        NimBLEAddress addr(std::string(config.bleAddress.c_str()), BLE_ADDR_PUBLIC);
-        BLE_YC01 device(addr, config.name);
-        if ( device.readData() ) {
-          auto readings = device.getReadings();
+        
+        // Try Public address first
+        NimBLEAddress addrPub(std::string(config.bleAddress.c_str()), BLE_ADDR_PUBLIC);
+        BLE_YC01 devicePub(addrPub, config.name);
+        if ( devicePub.readData() ) {
+          auto readings = devicePub.getReadings();
           if ( readings.type ) {
-            Serial.println("Data decoded successfully (direct):");
+            Serial.println("Data decoded successfully (direct, public):");
             lastStatus = "data read successfully";
             lastBleAddress = config.bleAddress;
-            lastSensorType = device.getSensorType();
+            lastSensorType = devicePub.getSensorType();
             lastReadings = readings;
             found = true;
           }
         }
+        
+        // If not found, try Random address
+        if (!found) {
+          NimBLEAddress addrRand(std::string(config.bleAddress.c_str()), BLE_ADDR_RANDOM);
+          BLE_YC01 deviceRand(addrRand, config.name);
+          if ( deviceRand.readData() ) {
+            auto readings = deviceRand.getReadings();
+            if ( readings.type ) {
+              Serial.println("Data decoded successfully (direct, random):");
+              lastStatus = "data read successfully";
+              lastBleAddress = config.bleAddress;
+              lastSensorType = deviceRand.getSensorType();
+              lastReadings = readings;
+              found = true;
+            }
+          }
+        }
       }
 
-      if (!found) {
+      if (found) {
+        lastData = uptime;
+      } else {
         lastStatus = list.empty() && config.bleAddress.isEmpty() ? "no devices found" : "no matching device found";
         lastBleAddress = config.bleAddress;
         lastSensorType = "unknown";
         lastReadings.type = 0;
         DEBUG_println(lastStatus);
+
+        if ((uptime - lastData) > config.interval*5) {
+          config.bleAddress = ""; // reset address to force re-scan next time
+          DEBUG_println("resetting BLE address due to multiple read failures");
+        }
       }
 
       updateStatusJson();
