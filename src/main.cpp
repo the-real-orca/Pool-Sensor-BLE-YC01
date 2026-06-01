@@ -410,6 +410,10 @@ void setup()
     mqttClient.setBufferSize(BUFFER_SIZE + MQTT_MAX_HEADER_SIZE + 10);
   }
 
+  // BLE init (one-time)
+  BLE_YC01::init();
+  DEBUG_println("BLE stack initialized");
+
   // reset BLE scan
   lastScan = -config.interval;
 
@@ -506,6 +510,23 @@ void handleSerialApi() {
             Serial.println(error.c_str());
           }
         }
+      } else if (cmd == "SET_ADDRESS") {
+        if (arg.length() == 0) {
+          Serial.println("Usage: SET_ADDRESS <ble_address>");
+          Serial.println("Example: SET_ADDRESS c0:00:00:03:79:5b");
+        } else {
+          config.bleAddress = arg;
+          saveConfig();
+          Serial.printf("BLE address set to %s. Rebooting...\n", config.bleAddress.c_str());
+          Serial.flush();
+          requestReboot("Serial SET_ADDRESS");
+        }
+      } else if (cmd == "CLEAR_ADDRESS") {
+        config.bleAddress = "";
+        saveConfig();
+        Serial.println("BLE address cleared. Rebooting...");
+        Serial.flush();
+        requestReboot("Serial CLEAR_ADDRESS");
       } else if (cmd == "GET_CONFIG") {
         Serial.println("Current configuration:");
         // Serialize config to JSON and print to Serial
@@ -514,7 +535,7 @@ void handleSerialApi() {
       } else {
         Serial.print("Unknown command: ");
         Serial.println(cmd);
-        Serial.println("Available commands: RESET, OFFLINE, SCAN, READ, STATUS, SET_CONFIG, GET_CONFIG\n");
+        Serial.println("Available commands: RESET, OFFLINE, SCAN, READ, STATUS, SET_CONFIG, GET_CONFIG, SET_ADDRESS, CLEAR_ADDRESS\n");
       }
       Serial.flush();
     } else if (c != '\r') {
@@ -604,13 +625,18 @@ void loop()
       break;
 
     case BLE_START_SCAN:
-      Serial.println("Scanning for BLE devices (async)...");
+      if (!config.bleAddress.isEmpty()) {
+        DEBUG_printf("Known address %s, skipping scan, connecting directly...\n", config.bleAddress.c_str());
+        bleState = BLE_PROCESS_RESULTS;
+        break;
+      }
+      DEBUG_printf("Scanning for BLE devices (addr=any, 30s)...\n");
       digitalWrite(LED_PIN, HIGH);
-      if (BLE_YC01::startScan(3)) {
+      if (BLE_YC01::startScan(30000)) {
         bleState = BLE_SCANNING;
       } else {
         DEBUG_println("Failed to start BLE scan");
-        lastScan = uptime; // Delay retry
+        lastScan = uptime;
         bleState = BLE_IDLE;
         digitalWrite(LED_PIN, LOW);
       }
@@ -619,6 +645,12 @@ void loop()
     case BLE_SCANNING:
       if (!BLE_YC01::isScanning()) {
         bleState = BLE_PROCESS_RESULTS;
+      } else {
+        static uint32_t lastScanLog = 0;
+        if (uptime - lastScanLog >= 1) {
+          lastScanLog = uptime;
+          DEBUG_println("Scanning...");
+        }
       }
       break;
 
@@ -626,36 +658,75 @@ void loop()
       auto list = BLE_YC01::getFoundDevices();
       bool found = false;
 
+      DEBUG_printf("BLE scan complete: %d device(s) found\n", list.size());
+      for (const auto& addr : list) {
+        DEBUG_printf("  candidate: %s\n", addr.toString().c_str());
+      }
+
+      int candidatesTried = 0;
       for (const auto& addr : list) {
         esp_task_wdt_reset();
-        Serial.print("Read device: ");
-        Serial.println(addr.toString().c_str());
+        String addrStr = addr.toString().c_str();
+
+        if ( !config.bleAddress.isEmpty() && !compareBLEAddress(addr, config.bleAddress) ) {
+          DEBUG_printf("  skip %s (addr mismatch)\n", addrStr.c_str());
+          continue;
+        }
+
+        DEBUG_printf("Connecting to %s...\n", addrStr.c_str());
+        BLE_YC01 device(addr, config.name);
+        sensorReadings_t readings = {0};
+        if ( device.readData() ) {
+          readings = device.getReadings();
+        }
         
-        if ( config.bleAddress.isEmpty() || compareBLEAddress(addr, config.bleAddress) ) {
-          BLE_YC01 device(addr, config.name);
-          sensorReadings_t readings = {0};
-          if ( device.readData() ) {
-            readings = device.getReadings();
-          }
-          
+        if ( readings.type ) {
+          Serial.println("Data decoded successfully:");
+          lastStatus = "data read successfully";
+          lastBleAddress = addrStr;
+          lastSensorType = device.getSensorType();
+          lastReadings = readings;
+          found = true;
+          break;
+        } else {
+          DEBUG_println("  not a YC01 sensor, trying next...");
+        }
+
+        // If a specific address is configured, only try that one
+        if (!config.bleAddress.isEmpty()) break;
+
+        // Limit to 5 candidates per scan when no address configured
+        candidatesTried++;
+        if (candidatesTried >= 5) {
+          DEBUG_println("  max candidates reached, stopping...");
+          break;
+        }
+      }
+
+      if (!found && !config.bleAddress.isEmpty()) {
+        // Address configured but not in scan → try direct connection
+        DEBUG_printf("Address %s not in scan, trying direct connection...\n", config.bleAddress.c_str());
+        NimBLEAddress addr(std::string(config.bleAddress.c_str()), BLE_ADDR_PUBLIC);
+        BLE_YC01 device(addr, config.name);
+        if ( device.readData() ) {
+          auto readings = device.getReadings();
           if ( readings.type ) {
-            Serial.println("Data decoded successfully:");
+            Serial.println("Data decoded successfully (direct):");
             lastStatus = "data read successfully";
-            lastBleAddress = device.getAddress().toString().c_str();
+            lastBleAddress = config.bleAddress;
             lastSensorType = device.getSensorType();
             lastReadings = readings;
             found = true;
           }
-          break; 
         }
       }
 
       if (!found) {
-        lastStatus = list.empty() ? "no devices found" : "no matching device found";
+        lastStatus = list.empty() && config.bleAddress.isEmpty() ? "no devices found" : "no matching device found";
         lastBleAddress = config.bleAddress;
         lastSensorType = "unknown";
         lastReadings.type = 0;
-        Serial.println(lastStatus);
+        DEBUG_println(lastStatus);
       }
 
       updateStatusJson();

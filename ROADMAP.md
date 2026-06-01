@@ -31,7 +31,9 @@ This document consolidates the project's tasks and roadmap, providing a prioriti
         -> Centralized reconnection logic, unique ClientID, Last Will and Testament support, and detailed state reporting implemented.
 - [x] **Web UI Optimization:** Improve the file upload process and provide more system information.
 - [ ] **BLE Reading Improvements:** Improve error reporting when connection or decoding fails, and address potential thread-safety issues in `decodeData`.
+        -> Fixed: NimBLEDevice::init() nur noch einmalig in setup(), readData() erkennt Service/Char-Fehler korrekt, decodeData nutzt lokalen Buffer, erweitertes Error-Logging.
 - [ ] **Advanced BLE Diagnostics:** Add more logging for BLE connection and decoding steps.
+        -> Scan-Callback loggt reason/Anzahl, readData() loggt jeden Fehlerschritt, Zustandsmaschine loggt Device-Adressen.
 - [ ] **Threshhold detection:** Implement min / max thresholds for PH, Chlorine, ORP, Temperature and battery voltage
         - plan implementation and update Roadmap, FSD, TSD and tests accordingly
         - add limits to config and web ui

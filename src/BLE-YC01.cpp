@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <NimBLEDevice.h>
+#include "esp_task_wdt.h"
 
 #include "config.h"
 #include "BLE-YC01.h"
@@ -36,17 +37,17 @@ static int16_t toInt16(uint8_t const data[], int idx) {
     return ((uint16_t)data[idx] << 8) | (uint16_t)data[idx + 1];
 }
 
-static uint8_t decodedData[60]; // Buffer for decoded data
-
 /**
  * @brief Decodes the proprietary BLE data from the sensor
  * @param data Pointer to raw data
  * @param length Length of data
- * @return Pointer to decoded data or NULL on error
+ * @param output Buffer (size >= length) to write decoded data into
+ * @return true on success, false on invalid length
  */
-static uint8_t* decodeData(uint8_t const data[], int length) {
+static bool decodeData(uint8_t const data[], int length, uint8_t output[]) {
     if (length < 2 || length > 60) {
-        return NULL; // Invalid data length
+        DEBUG_println("decodeData: invalid length");
+        return false;
     }
 
     uint8_t tmp, hibit0, lobit0, hibit1, lobit1;
@@ -59,11 +60,11 @@ static uint8_t* decodeData(uint8_t const data[], int length) {
         hibit0 = (tmp&0x55) << 1;
         lobit0 = (tmp&0xAA) >> 1;
 
-        decodedData[i] = ~(hibit1|lobit0);
+        output[i] = ~(hibit1|lobit0);
         tmp = ~(hibit0|lobit1);
-        decodedData[i-1] = tmp;
+        output[i-1] = tmp;
     }
-    return decodedData;
+    return true;
 }
 
 /**
@@ -87,47 +88,67 @@ static bool scanningActive = false;
 
 class MyScanCallbacks : public NimBLEScanCallbacks {
     void onResult(const NimBLEAdvertisedDevice *device) {
-        if (device->isAdvertisingService(serviceUUID)) {
-            bool alreadyFound = false;
-            for (const auto& addr : foundDevices) {
-                if (addr == device->getAddress()) {
-                    alreadyFound = true;
-                    break;
-                }
+        String addr = device->getAddress().toString().c_str();
+        String name = device->getName().c_str();
+        bool hasService = device->isAdvertisingService(serviceUUID);
+        int rssi = device->getRSSI();
+
+        Serial.printf("BLE[%s] name=\"%s\" rssi=%d service=%d\n",
+                      addr.c_str(), name.c_str(), rssi, hasService);
+
+        // Collect all devices; YC01 may not advertise its service UUID
+        bool alreadyFound = false;
+        for (const auto& a : foundDevices) {
+            if (a == device->getAddress()) {
+                alreadyFound = true;
+                break;
             }
-            if (!alreadyFound) {
-                DEBUG_print("Found device: "); DEBUG_print(device->getName().c_str());
-                DEBUG_print(" ("); DEBUG_print(device->getAddress().toString().c_str()); DEBUG_println(")");
-                foundDevices.push_back(device->getAddress());
-            }
+        }
+        if (!alreadyFound) {
+            foundDevices.push_back(device->getAddress());
         }
     }
 
     void onScanEnd(const NimBLEScanResults &results, int reason) {
         scanningActive = false;
-        DEBUG_println("Scan complete.");
+        Serial.printf("Scan complete. reason=%d total=%d candidates=%d\n",
+                      reason, results.getCount(), foundDevices.size());
     }
 };
 
 static MyScanCallbacks scanCallbacks;
 
-bool BLE_YC01::startScan(uint32_t duration) {
+bool BLE_YC01::startScan(uint32_t durationMs) {
     if (scanningActive) return false;
     
     foundDevices.clear();
     scanningActive = true;
     
-    NimBLEDevice::init("");
     NimBLEScan *pScan = NimBLEDevice::getScan();
     pScan->setScanCallbacks(&scanCallbacks);
     pScan->setInterval(45);
     pScan->setWindow(15);
     pScan->setActiveScan(true);
     
-    if (!pScan->start(duration)) { // duration is in seconds, async by default in NimBLE 2.x
+    // NimBLE 2.5: start() passes duration directly to ble_gap_disc (expects milliseconds)
+    if (!pScan->start(durationMs)) {
         scanningActive = false;
+        DEBUG_println("startScan: failed to start BLE scan");
         return false;
     }
+    return true;
+}
+
+bool BLE_YC01::init() {
+    static bool initialized = false;
+    if (initialized) return true;
+    if (!NimBLEDevice::init("")) {
+        Serial.println("FATAL: NimBLEDevice::init failed");
+        return false;
+    }
+    Serial.print("BLE stack initialized. MAC: ");
+    Serial.println(NimBLEDevice::getAddress().toString().c_str());
+    initialized = true;
     return true;
 }
 
@@ -148,77 +169,90 @@ BLE_YC01::BLE_YC01(NimBLEAddress const& addr, String const& name) {
 
 bool BLE_YC01::readData() {
     NimBLEClient *client = NimBLEDevice::createClient();
-    if (!client) { // Make sure the client was created
+    if (!client) {
+        DEBUG_println("readData: failed to create BLE client");
         return false;
     }
 
-    // connect to the device
-    bool result = true;
+    client->setConnectTimeout(5); // fast fail on unreachable devices
+    bool result = false;
     uint8_t retryCount = 0;
     do
     {
-        if ( client->connect(this->address) ) {
-            this->sensorType = "";
-            NimBLERemoteService* service;
-            service = client->getService("1800");
-            if (service) {
-                NimBLERemoteCharacteristic* nameChar = service->getCharacteristic("2A00");
-                if (nameChar && nameChar->canRead()) {
-                    this->sensorType = nameChar->readValue();
-                }
-            }
+        esp_task_wdt_reset();
+        result = false;
 
-            // Check if the sensor service was found
-            service = client->getService(serviceUUID);
-            if ( service ) {
-                NimBLERemoteCharacteristic *pCharacteristic = service->getCharacteristic(charUUID);
-                if ( pCharacteristic ) {
-
-                    // Read the raw value
-                    std::string value = pCharacteristic->readValue();
-                    int length = value.length();
-
-                    // Decode the data
-                    uint8_t *data = decodeData((uint8_t*)value.data(), length);
-                    if ( data )
-                    {
-                        uint8_t chksum = checksum(data, length-1);
-                        if (chksum != data[length-1]) {
-                            DEBUG_println("Checksum mismatch!");
-                            result = false;
-                        } else {
-                            struct sensorReadings_t readings;
-                            time_t now;
-                            time(&now);
-                            readings.time = now; // Current time in seconds
-                            readings.rssi = client->getRssi();
-                            readings.type = data[2];
-                            readings.pH = toInt16(data, 3) / 100.0; // pH value
-                            readings.ec = toInt16(data, 5); // EC value in mV
-                            readings.salt = toInt16(data, 5) * 0.55; // Salt value in g/L
-                            readings.tds = toInt16(data, 7); // TDS value in mg/L
-                            readings.orp = toInt16(data, 9); // ORP value in mV
-                            readings.cl = toInt16(data, 11) / 10.0; // Chlorine value in mg/L
-                            readings.temp = toInt16(data, 13) / 10.0; // Temperature value in °C
-                            readings.bat = toInt16(data, 15); // Battery value in mV
-                            this->readings = readings; // Store the readings
-                        }
-                    } else {
-                        DEBUG_println("Failed to decode data");
-                        result = false;
-                    }
-                }
-            }
-        } else {
-            // failed to connect
-            DEBUG_println("Failed to connect to device");
-            result = false;
+        if ( !client->connect(this->address) ) {
+            DEBUG_printf("readData: connect failed (attempt %d)\n", retryCount + 1);
+            retryCount++;
+            continue;
         }
-    
-        retryCount++;
+
+        this->sensorType = "";
+        NimBLERemoteService* service;
+        service = client->getService("1800");
+        if (service) {
+            NimBLERemoteCharacteristic* nameChar = service->getCharacteristic("2A00");
+            if (nameChar && nameChar->canRead()) {
+                this->sensorType = nameChar->readValue();
+            }
+        }
+
+        service = client->getService(serviceUUID);
+        if ( !service ) {
+            DEBUG_println("readData: sensor service (ff01) not found");
+            retryCount++;
+            client->disconnect();
+            continue;
+        }
+
+        NimBLERemoteCharacteristic *pCharacteristic = service->getCharacteristic(charUUID);
+        if ( !pCharacteristic ) {
+            DEBUG_println("readData: sensor characteristic (ff02) not found");
+            retryCount++;
+            client->disconnect();
+            continue;
+        }
+
+        std::string value = pCharacteristic->readValue();
+        int length = value.length();
+
+        uint8_t decodedData[60];
+        if ( !decodeData((uint8_t*)value.data(), length, decodedData) ) {
+            DEBUG_println("readData: failed to decode data");
+            retryCount++;
+            client->disconnect();
+            continue;
+        }
+
+        uint8_t chksum = checksum(decodedData, length-1);
+        if (chksum != decodedData[length-1]) {
+            DEBUG_println("readData: checksum mismatch");
+            retryCount++;
+            client->disconnect();
+            continue;
+        }
+
+        struct sensorReadings_t readings;
+        time_t now;
+        time(&now);
+        readings.time = now;
+        readings.rssi = client->getRssi();
+        readings.type = decodedData[2];
+        readings.pH = toInt16(decodedData, 3) / 100.0;
+        readings.ec = toInt16(decodedData, 5);
+        readings.salt = toInt16(decodedData, 5) * 0.55;
+        readings.tds = toInt16(decodedData, 7);
+        readings.orp = toInt16(decodedData, 9);
+        readings.cl = toInt16(decodedData, 11) / 10.0;
+        readings.temp = toInt16(decodedData, 13) / 10.0;
+        readings.bat = toInt16(decodedData, 15);
+        this->readings = readings;
+
+        result = true;
+
     } while ( !result && retryCount < 3 );
 
-    NimBLEDevice::deleteClient(client);            
-
+    NimBLEDevice::deleteClient(client);
     return result;
 }

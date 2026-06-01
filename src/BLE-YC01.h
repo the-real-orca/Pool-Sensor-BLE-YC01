@@ -41,11 +41,17 @@ bool compareBLEAddress(const NimBLEAddress& address, const String& targetAddress
 class BLE_YC01 {
 public:
     /**
+     * @brief One-time BLE stack initialization. Must be called once before any other BLE operation.
+     * @return true if initialization succeeded.
+     */
+    static bool init();
+
+    /**
      * @brief Starts an asynchronous scan for available BLE-YC01 devices.
-     * @param duration Scan duration in seconds.
+     * @param durationMs Scan duration in milliseconds (default 5000 = 5s).
      * @return true if scan started successfully.
      */
-    static bool startScan(uint32_t duration = 3);
+    static bool startScan(uint32_t durationMs = 5000);
 
     /**
      * @brief Checks if a scan is currently running.
